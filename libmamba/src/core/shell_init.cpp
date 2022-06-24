@@ -28,7 +28,7 @@ namespace mamba
 {
     namespace
     {
-        std::regex CONDA_INITIALIZE_RE_BLOCK("# >>> mamba initialize >>>(?:\n|\r\n)?"
+        std::regex CONDA_INITIALIZE_RE_BLOCK("\n# >>> mamba initialize >>>(?:\n|\r\n)?"
                                              "([\\s\\S]*?)"
                                              "# <<< mamba initialize <<<(?:\n|\r\n)?");
 
@@ -201,7 +201,7 @@ namespace mamba
 
         fs::path env_bin = env_prefix / "bin";
 
-        content << "# >>> mamba initialize >>>\n";
+        content << "\n# >>> mamba initialize >>>\n";
         content << "# !! Contents within this block are managed by 'mamba init' !!\n";
         content << "export MAMBA_EXE=" << mamba_exe << ";\n";
         content << "export MAMBA_ROOT_PREFIX=" << env_prefix << ";\n";
@@ -338,6 +338,48 @@ namespace mamba
             std::ofstream rc_file = open_ofstream(file_path, std::ios::out | std::ios::binary);
             rc_file << result;
         }
+        return true;
+    }
+
+    bool reset_rc_file(const fs::path& file_path,
+                        const fs::path& conda_prefix, // todo remove conda prefix
+                        const std::string& shell,
+                        const fs::path& mamba_exe)
+    {
+        Console::stream() << "Resetting RC file " << file_path
+                          << "\nDeleting config for root prefix " << termcolor::bold
+                          << conda_prefix << termcolor::reset
+                          << "\nClearing mamba executable environment variable";
+
+        std::string conda_init_content, rc_content;
+
+        if (!fs::exists(file_path))
+        {
+            Console::stream() << "File does not exist, nothing to do.";
+            return true;
+        }
+        else
+        {
+            rc_content = read_contents(file_path, std::ios::in);
+        }
+
+        Console::stream() << "Removing the following in your " << file_path
+                          << " file\n"
+                          << termcolor::colorize << termcolor::green
+                          << "# >>> mamba initialize >>>\n...\n# <<< mamba initialize <<<\n"
+                          << termcolor::reset;
+
+        if (rc_content.find("# >>> mamba initialize >>>") == rc_content.npos)
+        {
+            Console::stream() << "No mamba initialize block found, nothing to do.";
+            return true;
+        }
+
+        std::string result
+            = std::regex_replace(rc_content, CONDA_INITIALIZE_RE_BLOCK, "");
+
+        std::ofstream rc_file = open_ofstream(file_path, std::ios::out | std::ios::binary);
+        rc_file << result;
         return true;
     }
 
@@ -492,6 +534,20 @@ namespace mamba
             std::ofstream mamba_psm1_f = open_ofstream(root_prefix / "condabin" / "Mamba.psm1");
             mamba_psm1_f << data_Mamba_psm1;
         }
+    }
+
+    void deinit_root_prefix(const std::string& shell, const fs::path& root_prefix)
+    {
+        Context::instance().root_prefix = root_prefix;
+
+        if (shell == "zsh" || shell == "bash" || shell == "posix")
+        {
+            PosixActivator a;
+            auto sh_source_path = a.hook_source_path();
+
+            fs::remove(sh_source_path);
+        }
+        // todo implement xonsh, ...
     }
 
     std::string powershell_contents(const fs::path& conda_prefix)
@@ -665,5 +721,30 @@ namespace mamba
 #ifdef _WIN32
         enable_long_paths_support(false);
 #endif
+    }
+
+    void deinit_shell(const std::string& shell, const fs::path& conda_prefix)
+    {
+        // todo implement for other shells
+        deinit_root_prefix(shell, conda_prefix);
+        auto mamba_exe = get_self_exe_path();
+        fs::path home = env::home_directory();
+        if (shell == "bash")
+        {
+            fs::path bashrc_path = (on_mac || on_win) ? home / ".bash_profile" : home / ".bashrc";
+            reset_rc_file(bashrc_path, conda_prefix, shell, mamba_exe);
+        }
+        else if (shell == "zsh")
+        {
+            fs::path zshrc_path = home / ".zshrc";
+            reset_rc_file(zshrc_path, conda_prefix, shell, mamba_exe);
+        }
+        else
+        {
+            throw std::runtime_error("Support for other shells not yet implemented.");
+        }
+        // todo new lines after init/deinit added, FIX
+
+        // todo maybe enable long paths support again?
     }
 }

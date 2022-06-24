@@ -54,6 +54,7 @@ namespace mamba
     // we need this function during linking...
     void init_root_prefix_cmdexe(const fs::path& root_prefix);
     void init_root_prefix(const std::string& shell, const fs::path& root_prefix);
+    void deinit_root_prefix(const std::string& shell, const fs::path& root_prefix);
 
     std::string powershell_contents(const fs::path& conda_prefix);
     bool init_powershell(const fs::path& profile_path,
@@ -61,6 +62,8 @@ namespace mamba
                          bool reverse = false);
 
     void init_shell(const std::string& shell, const fs::path& conda_prefix);
+
+    void deinit_shell(const std::string& shell, const fs::path& conda_prefix);
 }
 
 #endif
