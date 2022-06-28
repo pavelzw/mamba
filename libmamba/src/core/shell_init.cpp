@@ -331,7 +331,7 @@ namespace mamba
         if (result.find("# >>> mamba initialize >>>") == result.npos)
         {
             std::ofstream rc_file = open_ofstream(file_path, std::ios::app | std::ios::binary);
-            rc_file << std::endl << conda_init_content;
+            rc_file << conda_init_content;
         }
         else
         {
