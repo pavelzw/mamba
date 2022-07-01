@@ -507,6 +507,38 @@ namespace mamba
         mamba_hook_bat_f << hook_content;
     }
 
+    void deinit_root_prefix_cmdexe(const fs::path& root_prefix)
+    {
+        auto micromamba_bat = root_prefix / "condabin" / "micromamba.bat";
+        auto _mamba_activate_bat = root_prefix / "condabin" / "_mamba_activate.bat";
+        auto condabin_activate_bat = root_prefix / "condabin" / "activate.bat";
+        auto scripts_activate_bat = root_prefix / "Scripts" / "activate.bat";
+        auto mamba_hook_bat = root_prefix / "condabin" / "mamba_hook.bat";
+
+        for (auto& f : {micromamba_bat, _mamba_activate_bat, condabin_activate_bat, scripts_activate_bat, mamba_hook_bat})
+        {
+            if (fs::exists(f))
+            {
+                fs::remove(f);
+            }
+            else {
+                Console::stream() << "Could not remove " << f << " because it doesn't exist.\n";
+            }
+        }
+
+        // remove condabin and Scripts if empty
+        auto condabin = root_prefix / "condabin";
+        auto scripts = root_prefix / "Scripts";
+        for (auto& d : {condabin, scripts})
+        {
+            if (fs::exists(d) && fs::is_empty(d))
+            {
+                fs::remove(d);
+                Console::stream() << "Removed " << scripts << " directory.\n";
+            }
+        }
+    }
+
     void init_root_prefix(const std::string& shell, const fs::path& root_prefix)
     {
         Context::instance().root_prefix = root_prefix;
