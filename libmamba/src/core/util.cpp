@@ -246,6 +246,23 @@ namespace mamba
         return strip(input, WHITESPACES);
     }
 
+    std::wstring wstrip(const std::wstring& input)
+    {
+        return wstrip(input, WHITESPACES_WSTR);
+    }
+
+    std::wstring wstrip(const std::wstring& input, const std::wstring& chars)
+    {
+        size_t start = input.find_first_not_of(chars);
+        if (start == std::string::npos)
+        {
+            return L"";
+        }
+        size_t stop = input.find_last_not_of(chars) + 1;
+        size_t length = stop - start;
+        return length == 0 ? L"" : input.substr(start, length);
+    }
+
     std::string_view lstrip(const std::string_view& input)
     {
         return lstrip(input, WHITESPACES);

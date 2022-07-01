@@ -102,8 +102,9 @@ namespace mamba
 
             for (auto it = autorun_list.begin(); it != autorun_list.end(); ++it)
             {
+                std::wstring stripped = wstrip(*it);
                 // delete if stripped version matches to hook_string
-                if (it->find(hook_string) != std::wstring::npos)
+                if (stripped == hook_string)
                 {
                     autorun_list.erase(it);
                     break;

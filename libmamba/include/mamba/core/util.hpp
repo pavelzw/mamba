@@ -161,6 +161,7 @@ namespace mamba
     }
 
     constexpr const char* WHITESPACES(" \r\n\t\f\v");
+    constexpr const wchar_t* WHITESPACES_WSTR(L" \r\n\t\f\v");
 
     bool starts_with(const std::string_view& str, const std::string_view& prefix);
     bool ends_with(const std::string_view& str, const std::string_view& suffix);
@@ -180,10 +181,12 @@ namespace mamba
     bool starts_with_any(const std::string_view& str, const std::vector<std::string_view>& prefix);
 
     std::string_view strip(const std::string_view& input);
+    std::wstring wstrip(const std::wstring& input);
     std::string_view lstrip(const std::string_view& input);
     std::string_view rstrip(const std::string_view& input);
 
     std::string_view strip(const std::string_view& input, const std::string_view& chars);
+    std::wstring wstrip(const std::wstring& input, const std::wstring& chars);
     std::string_view lstrip(const std::string_view& input, const std::string_view& chars);
     std::string_view rstrip(const std::string_view& input, const std::string_view& chars);
 

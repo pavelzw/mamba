@@ -484,6 +484,7 @@ jobs:
           rm -rf $(micromamba info --json | jq -r '."env location"')/envs
 
   umamba_tests_win_cmd:
+    if: 1 == 0
     needs: [umamba_tests_win]
     runs-on: ${{ matrix.os }}
     strategy:
