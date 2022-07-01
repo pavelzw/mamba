@@ -68,6 +68,7 @@ namespace mamba
         return "";
     }
 
+// #define _WIN32
 #ifdef _WIN32
     void init_cmd_exe_registry(const std::wstring& reg_path,
                                const fs::path& conda_prefix,
@@ -89,7 +90,31 @@ namespace mamba
                                    + std::wstring(L"\"");
         if (reverse)
         {
-            // Not implemented yet
+            // remove the mamba hook from the autorun list
+            std::wstringstream stringstream(prev_value);
+            std::wstring segment;
+            std::vector<std::wstring> autorun_list;
+
+            while (std::getline(stringstream, segment, wchar_t('&')))
+            {
+                autorun_list.push_back(segment);
+            }
+
+            for (auto it = autorun_list.begin(); it != autorun_list.end(); ++it)
+            {
+                // delete if stripped version matches to hook_string
+                if (it->find(hook_string) != std::wstring::npos)
+                {
+                    autorun_list.erase(it);
+                    break;
+                }
+            }
+
+            // join the list back into a string
+            const std::wstring new_value = join(std::wstring(L" & "), autorun_list);
+
+            // set the autorun string
+            key.SetStringValue(L"AutoRun", new_value);
         }
         else
         {
@@ -131,7 +156,7 @@ namespace mamba
             }
         }
     }
-#endif
+#endif // _WIN32
 
     // this function calls cygpath to convert win path to unix
     std::string native_path_to_unix(const std::string& path, bool is_a_path_env)
@@ -243,7 +268,7 @@ namespace mamba
             s_mamba_exe = mamba_exe;
         }
 
-        content << "# >>> mamba initialize >>>\n";
+        content << "\n# >>> mamba initialize >>>\n";
         content << "# !! Contents within this block are managed by 'mamba init' !!\n";
         content << "$MAMBA_EXE = " << mamba_exe << "\n";
         content << "$MAMBA_ROOT_PREFIX = " << env_prefix << "\n";
@@ -279,7 +304,7 @@ namespace mamba
             s_mamba_exe = mamba_exe;
         }
 
-        content << "# >>> mamba initialize >>>\n";
+        content << "\n# >>> mamba initialize >>>\n";
         content << "# !! Contents within this block are managed by 'mamba init' !!\n";
         content << "set -gx MAMBA_EXE " << mamba_exe << "\n";
         content << "set -gx MAMBA_ROOT_PREFIX " << env_prefix << "\n";
@@ -342,9 +367,9 @@ namespace mamba
     }
 
     bool reset_rc_file(const fs::path& file_path,
-                        const fs::path& conda_prefix, // todo remove conda prefix
-                        const std::string& shell,
-                        const fs::path& mamba_exe)
+                       const fs::path& conda_prefix, // todo remove conda prefix
+                       const std::string& shell,
+                       const fs::path& mamba_exe)
     {
         Console::stream() << "Resetting RC file " << file_path
                           << "\nDeleting config for root prefix " << termcolor::bold
@@ -547,7 +572,18 @@ namespace mamba
 
             fs::remove(sh_source_path);
         }
-        // todo implement xonsh, ...
+        else if (shell == "xonsh")
+        {
+            // todo
+        }
+        else if (shell == "cmd.exe")
+        {
+            // todo
+        }
+        else if (shell == "powershell")
+        {
+            // todo
+        }
     }
 
     std::string powershell_contents(const fs::path& conda_prefix)
@@ -725,7 +761,7 @@ namespace mamba
 
     void deinit_shell(const std::string& shell, const fs::path& conda_prefix)
     {
-        // todo implement for other shells
+        // todo implement for other shells, xonsh, fish, cmd.exe, powershell
         deinit_root_prefix(shell, conda_prefix);
         auto mamba_exe = get_self_exe_path();
         fs::path home = env::home_directory();
@@ -738,6 +774,23 @@ namespace mamba
         {
             fs::path zshrc_path = home / ".zshrc";
             reset_rc_file(zshrc_path, conda_prefix, shell, mamba_exe);
+        }
+        else if (shell == "fish")
+        {
+            fs::path fishrc_path = home / ".config" / "fish" / "config.fish";
+            reset_rc_file(fishrc_path, conda_prefix, shell, mamba_exe);
+        }
+        else if (shell == "cmd.exe")
+        {
+#ifndef _WIN32
+            throw std::runtime_error("CMD.EXE can only be deinitialized on Windows.");
+#else
+            init_cmd_exe_registry(L"Software\\Microsoft\\Command Processor", conda_prefix, true);
+#endif
+        }
+        else if (shell == "powershell")
+        {
+            // todo
         }
         else
         {
