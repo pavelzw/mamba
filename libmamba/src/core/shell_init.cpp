@@ -32,7 +32,7 @@ namespace mamba
                                              "([\\s\\S]*?)"
                                              "# <<< mamba initialize <<<(?:\n|\r\n)?");
 
-        std::regex CONDA_INITIALIZE_PS_RE_BLOCK("#region mamba initialize(?:\n|\r\n)?"
+        std::regex CONDA_INITIALIZE_PS_RE_BLOCK("\n#region mamba initialize(?:\n|\r\n)?"
                                                 "([\\s\\S]*?)"
                                                 "#endregion(?:\n|\r\n)?");
     }
@@ -222,7 +222,7 @@ namespace mamba
 #ifdef _WIN32
         std::string cyg_mamba_exe = native_path_to_unix(mamba_exe.string());
         std::string cyg_env_prefix = native_path_to_unix(env_prefix.string());
-        content << "# >>> mamba initialize >>>\n";
+        content << "\n# >>> mamba initialize >>>\n";
         content << "# !! Contents within this block are managed by 'mamba init' !!\n";
         content << "export MAMBA_EXE=" << std::quoted(cyg_mamba_exe, '\'') << ";\n";
         content << "export MAMBA_ROOT_PREFIX=" << std::quoted(cyg_env_prefix, '\'') << ";\n";
@@ -615,7 +615,10 @@ namespace mamba
         }
         else if (shell == "xonsh")
         {
-            // todo
+            XonshActivator a;
+            auto sh_source_path = a.hook_source_path();
+
+            fs::remove(sh_source_path);
         }
         else if (shell == "cmd.exe")
         {
@@ -623,7 +626,8 @@ namespace mamba
         }
         else if (shell == "powershell")
         {
-            // todo
+            fs::remove(root_prefix / "condabin" / "mamba_hook.ps1");
+            fs::remove(root_prefix / "condabin" / "Mamba.psm1");
         }
     }
 
@@ -633,7 +637,7 @@ namespace mamba
 
         std::stringstream out;
 
-        out << "#region mamba initialize\n";
+        out << "\n#region mamba initialize\n";
         out << "# !! Contents within this block are managed by 'mamba shell init' !!\n";
         out << "$Env:MAMBA_ROOT_PREFIX = " << conda_prefix << "\n";
         out << "$Env:MAMBA_EXE = '" << self_exe.native() << "'\n";
@@ -660,6 +664,11 @@ namespace mamba
 
         if (reverse)
         {
+            Console::stream() << "Removing the following in your " << profile_path
+                              << " file\n"
+                              << termcolor::colorize << termcolor::green
+                              << "#region mamba initialize\n...\n#endregion\n"
+                              << termcolor::reset;
             profile_content = std::regex_replace(profile_content, CONDA_INITIALIZE_PS_RE_BLOCK, "");
         }
         else
@@ -679,27 +688,43 @@ namespace mamba
 
         if (profile_content != profile_original_content || !found_mamba_initialize)
         {
-            if (!Context::instance().dry_run)
+            if (strip(profile_content).empty())
             {
-                if (!fs::exists(profile_path.parent_path()))
-                {
-                    fs::create_directories(profile_path.parent_path());
-                }
+                // remove the file if it's empty
+                fs::remove(profile_path);
 
-                if (!found_mamba_initialize)
+                // remove parent folder if it's empty
+                fs::path parent_path = profile_path.parent_path();
+                if (fs::is_empty(parent_path))
                 {
-                    std::ofstream out
-                        = open_ofstream(profile_path, std::ios::app | std::ios::binary);
-                    out << std::endl << conda_init_content;
+                    // todo remove or remove_all?
+                    fs::remove_all(parent_path);
                 }
-                else
+            }
+            else
+            {
+                if (!Context::instance().dry_run)
                 {
-                    std::ofstream out
-                        = open_ofstream(profile_path, std::ios::out | std::ios::binary);
-                    out << profile_content;
-                }
+                    if (!fs::exists(profile_path.parent_path()))
+                    {
+                        fs::create_directories(profile_path.parent_path());
+                    }
 
-                return true;
+                    if (!found_mamba_initialize)
+                    {
+                        std::ofstream out
+                            = open_ofstream(profile_path, std::ios::app | std::ios::binary);
+                        out << conda_init_content;
+                    }
+                    else
+                    {
+                        std::ofstream out
+                            = open_ofstream(profile_path, std::ios::out | std::ios::binary);
+                        out << profile_content;
+                    }
+
+                    return true;
+                }
             }
         }
         return false;
@@ -796,9 +821,7 @@ namespace mamba
             throw std::runtime_error("Support for other shells not yet implemented.");
         }
 #ifdef _WIN32
-        if (Console::prompt("Do you want to disable long path support?", 'n')) {
-            set_long_paths_support(1, false);
-        }
+        set_long_paths_support(1, false);
 #endif
     }
 
@@ -832,7 +855,42 @@ namespace mamba
         }
         else if (shell == "powershell")
         {
-            // todo
+            // todo move to separate method
+            std::string profile_var("$PROFILE.CurrentUserAllHosts");
+            auto find_powershell_paths = [&profile_var](const std::string& exe) -> std::string
+            {
+                try
+                {
+                    std::string out, err;
+                    auto [status, ec] = reproc::run(
+                        std::vector<std::string>{ exe, "-NoProfile", "-Command", profile_var },
+                        reproc::options{},
+                        reproc::sink::string(out),
+                        reproc::sink::string(err));
+                    if (ec)
+                    {
+                        throw std::runtime_error(ec.message());
+                    }
+                    return std::string(strip(out));
+                }
+                catch (...)
+                {
+                    return "";
+                }
+            };
+
+            std::set<std::string> pwsh_profiles;
+            for (auto& exe : std::vector<std::string>{ "powershell", "pwsh", "pwsh-preview" })
+            {
+                auto profile_path = find_powershell_paths(exe);
+                if (!profile_path.empty())
+                {
+                    Console::stream()
+                        << "Deinit " << exe << " profile at '" << profile_path << "'";
+                    init_powershell(profile_path, conda_prefix, true);
+
+                }
+            }
         }
         else
         {
@@ -842,7 +900,9 @@ namespace mamba
         deinit_root_prefix(shell, conda_prefix);
 
 #ifdef _WIN32
-        set_long_paths_support(0, false);
+        if (Console::prompt("Do you want to disable long path support?", 'n')) {
+            set_long_paths_support(0, false);
+        }
 #endif
     }
 }
