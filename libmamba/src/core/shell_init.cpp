@@ -109,6 +109,10 @@ namespace mamba
                     autorun_list.erase(it);
                     break;
                 }
+                else
+                {
+                    *it = stripped;
+                }
             }
 
             // join the list back into a string
