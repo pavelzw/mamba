@@ -805,7 +805,6 @@ namespace mamba
     void deinit_shell(const std::string& shell, const fs::path& conda_prefix)
     {
         // todo implement for other shells, xonsh, fish, cmd.exe, powershell
-        deinit_root_prefix(shell, conda_prefix);
         auto mamba_exe = get_self_exe_path();
         fs::path home = env::home_directory();
         if (shell == "bash")
