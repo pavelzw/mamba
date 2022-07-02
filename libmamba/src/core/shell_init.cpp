@@ -107,6 +107,10 @@ namespace mamba
                 if (stripped == hook_string)
                 {
                     autorun_list.erase(it);
+
+                    std::cout << "Removing from cmd.exe AUTORUN: " << termcolor::green;
+                    std::wcout << hook_string;
+                    std::cout << termcolor::reset << std::endl;
                     break;
                 }
                 else
@@ -615,7 +619,7 @@ namespace mamba
         }
         else if (shell == "cmd.exe")
         {
-            // todo
+            deinit_root_prefix_cmdexe(root_prefix);
         }
         else if (shell == "powershell")
         {
@@ -792,7 +796,9 @@ namespace mamba
             throw std::runtime_error("Support for other shells not yet implemented.");
         }
 #ifdef _WIN32
-        enable_long_paths_support(false);
+        if (Console::prompt("Do you want to disable long path support?", 'n')) {
+            set_long_paths_support(1, false);
+        }
 #endif
     }
 
@@ -833,8 +839,11 @@ namespace mamba
         {
             throw std::runtime_error("Support for other shells not yet implemented.");
         }
-        // todo new lines after init/deinit added, FIX
 
-        // todo maybe enable long paths support again?
+        deinit_root_prefix(shell, conda_prefix);
+
+#ifdef _WIN32
+        set_long_paths_support(0, false);
+#endif
     }
 }

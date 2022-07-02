@@ -119,7 +119,7 @@ namespace mamba
         return true;
     }
 
-    bool enable_long_paths_support(bool force)
+    bool set_long_paths_support(int value, bool force)
     {
         // Needs to be set system-wide & can only be run as admin ...
         std::string win_ver = windows_version();
@@ -147,9 +147,9 @@ namespace mamba
             return false;
         }
 
-        if (prev_value == 1)
+        if (prev_value == value)
         {
-            std::cout << termcolor::green << "Windows long-path support already enabled."
+            std::cout << termcolor::green << "Windows long-path support already set."
                       << termcolor::reset << std::endl;
             return true;
         }
@@ -158,22 +158,22 @@ namespace mamba
         {
             winreg::RegKey key_for_write(HKEY_LOCAL_MACHINE,
                                          L"SYSTEM\\CurrentControlSet\\Control\\FileSystem");
-            key_for_write.SetDwordValue(L"LongPathsEnabled", 1);
+            key_for_write.SetDwordValue(L"LongPathsEnabled", value);
         }
         else
         {
-            if (Console::prompt("Enter admin mode to enable long paths support?", 'n'))
+            if (Console::prompt(std::string("Enter admin mode to ") + ((value == 1) ? "enable" : "disable") + " long paths support?", 'n'))
             {
                 if (!run_as_admin(
                         "reg.exe",
-                        "ADD HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\FileSystem /v LongPathsEnabled /d 1 /t REG_DWORD /f"))
+                        R"(ADD HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\FileSystem /v LongPathsEnabled /d )" + std::to_string(value) + " /t REG_DWORD /f"))
                 {
                     return false;
                 }
             }
             else
             {
-                LOG_WARNING << "Did not enable long paths support.";
+                LOG_WARNING << std::string("Did not ") + ((value == 1) ? "enable" : "disable") + " long paths support.";
                 return false;
             }
         }
@@ -181,7 +181,7 @@ namespace mamba
         prev_value = key.GetDwordValue(L"LongPathsEnabled");
         if (prev_value == 1)
         {
-            std::cout << termcolor::green << "Windows long-path support enabled."
+            std::cout << termcolor::green << std::string("Windows long-path support ") + ((value == 1) ? "enabled" : "disabled") + "."
                       << termcolor::reset << std::endl;
             return true;
         }
