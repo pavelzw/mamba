@@ -232,30 +232,15 @@ namespace mamba
                && prefix.end() == std::mismatch(prefix.begin(), prefix.end(), vec.begin()).first;
     }
 
-
-    template <class S, class T>
-    inline T join(const T j, const S& container)
+    template <class S, class CharType>
+    inline std::basic_string<CharType> join(const CharType* sep, const S& container)
     {
         if (container.empty())
-            return T();
-        T result = container[0];
+            return std::basic_string<CharType>();
+        std::basic_string<CharType> result = container[0];
         for (std::size_t i = 1; i < container.size(); ++i)
         {
-            result += j;
-            result += container[i];
-        }
-        return result;
-    }
-
-    template <class S>
-    inline std::string join(const char* j, const S& container)
-    {
-        if (container.empty())
-            return "";
-        std::string result = container[0];
-        for (std::size_t i = 1; i < container.size(); ++i)
-        {
-            result += j;
+            result += sep;
             result += container[i];
         }
         return result;

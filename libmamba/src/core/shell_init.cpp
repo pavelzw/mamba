@@ -117,7 +117,7 @@ namespace mamba
             }
 
             // join the list back into a string
-            const std::wstring new_value = join(std::wstring(L" & "), autorun_list);
+            const std::wstring new_value = join(L" & ", autorun_list);
 
             // set the autorun string
             key.SetStringValue(L"AutoRun", new_value);
