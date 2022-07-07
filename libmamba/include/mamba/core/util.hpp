@@ -190,9 +190,31 @@ namespace mamba
     std::string_view lstrip(const std::string_view& input, const std::string_view& chars);
     std::string_view rstrip(const std::string_view& input, const std::string_view& chars);
 
-    std::vector<std::string> split(const std::string_view& input,
-                                   const std::string_view& sep,
-                                   std::size_t max_split = SIZE_MAX);
+    template<class CharType>
+    std::vector<std::basic_string<CharType>> split(const std::basic_string_view<CharType>& input,
+                                                        const std::basic_string_view<CharType>& sep,
+                                                        std::size_t max_split = SIZE_MAX)
+    {
+        std::vector<std::basic_string<CharType>> result;
+        std::size_t i = 0, j = 0, len = input.size(), n = sep.size();
+
+        while (i + n <= len)
+        {
+            if (input[i] == sep[0] && input.substr(i, n) == sep)
+            {
+                if (max_split-- <= 0)
+                    break;
+                result.emplace_back(input.substr(j, i - j));
+                i = j = i + n;
+            }
+            else
+            {
+                i++;
+            }
+        }
+        result.emplace_back(input.substr(j, len - j));
+        return result;
+    }
 
     std::vector<std::string> rsplit(const std::string_view& input,
                                     const std::string_view& sep,

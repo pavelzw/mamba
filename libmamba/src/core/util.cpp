@@ -297,31 +297,6 @@ namespace mamba
         return end == std::string::npos ? "" : input.substr(0, end + 1);
     }
 
-    std::vector<std::string> split(const std::string_view& input,
-                                   const std::string_view& sep,
-                                   std::size_t max_split)
-    {
-        std::vector<std::string> result;
-        std::size_t i = 0, j = 0, len = input.size(), n = sep.size();
-
-        while (i + n <= len)
-        {
-            if (input[i] == sep[0] && input.substr(i, n) == sep)
-            {
-                if (max_split-- <= 0)
-                    break;
-                result.emplace_back(input.substr(j, i - j));
-                i = j = i + n;
-            }
-            else
-            {
-                i++;
-            }
-        }
-        result.emplace_back(input.substr(j, len - j));
-        return result;
-    }
-
     std::vector<std::string> rsplit(const std::string_view& input,
                                     const std::string_view& sep,
                                     std::size_t max_split)

@@ -95,10 +95,7 @@ namespace mamba
             std::wstring segment;
             std::vector<std::wstring> autorun_list;
 
-            while (std::getline(stringstream, segment, wchar_t('&')))
-            {
-                autorun_list.push_back(segment);
-            }
+            autorun_list = split(std::wstring_view(prev_value), std::wstring_view(L"&"));
 
             for (auto it = autorun_list.begin(); it != autorun_list.end(); ++it)
             {
