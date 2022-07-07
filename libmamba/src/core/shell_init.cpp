@@ -382,7 +382,7 @@ namespace mamba
         return true;
     }
 
-    bool reset_rc_file(const fs::path& file_path,
+    void reset_rc_file(const fs::path& file_path,
                        const fs::path& conda_prefix, // todo remove conda prefix
                        const std::string& shell,
                        const fs::path& mamba_exe)
@@ -396,8 +396,8 @@ namespace mamba
 
         if (!fs::exists(file_path))
         {
-            Console::stream() << "File does not exist, nothing to do.";
-            return true;
+            LOG_INFO << "File does not exist, nothing to do.";
+            return;
         }
         else
         {
@@ -412,8 +412,8 @@ namespace mamba
 
         if (rc_content.find("# >>> mamba initialize >>>") == rc_content.npos)
         {
-            Console::stream() << "No mamba initialize block found, nothing to do.";
-            return true;
+            LOG_INFO << "No mamba initialize block found, nothing to do.";
+            return;
         }
 
         std::string result
@@ -421,7 +421,6 @@ namespace mamba
 
         std::ofstream rc_file = open_ofstream(file_path, std::ios::out | std::ios::binary);
         rc_file << result;
-        return true;
     }
 
     std::string get_hook_contents(const std::string& shell)
@@ -535,9 +534,10 @@ namespace mamba
             if (fs::exists(f))
             {
                 fs::remove(f);
+                LOG_INFO << "Removed " << f << " file.\n";
             }
             else {
-                Console::stream() << "Could not remove " << f << " because it doesn't exist.\n";
+                LOG_INFO << "Could not remove " << f << " because it doesn't exist.\n";
             }
         }
 
@@ -549,7 +549,7 @@ namespace mamba
             if (fs::exists(d) && fs::is_empty(d))
             {
                 fs::remove(d);
-                Console::stream() << "Removed " << scripts << " directory.\n";
+                LOG_INFO << "Removed " << scripts << " directory.\n";
             }
         }
     }
@@ -619,6 +619,7 @@ namespace mamba
             auto sh_source_path = a.hook_source_path();
 
             fs::remove(sh_source_path);
+            LOG_INFO << "Removed " << sh_source_path << " file.\n";
         }
         else if (shell == "xonsh")
         {
@@ -626,6 +627,7 @@ namespace mamba
             auto sh_source_path = a.hook_source_path();
 
             fs::remove(sh_source_path);
+            LOG_INFO << "Removed " << sh_source_path << " file.\n";
         }
         else if (shell == "cmd.exe")
         {
@@ -633,8 +635,12 @@ namespace mamba
         }
         else if (shell == "powershell")
         {
-            fs::remove(root_prefix / "condabin" / "mamba_hook.ps1");
-            fs::remove(root_prefix / "condabin" / "Mamba.psm1");
+            fs::path mamba_hook_f = root_prefix / "condabin" / "mamba_hook.ps1";
+            fs::remove(mamba_hook_f);
+            LOG_INFO << "Removed " << mamba_hook_f << " file.\n";
+            fs::path mamba_psm1_f = root_prefix / "condabin" / "Mamba.psm1";
+            fs::remove(mamba_psm1_f);
+            LOG_INFO << "Removed " << mamba_psm1_f << " file.\n";
         }
     }
 
@@ -699,13 +705,14 @@ namespace mamba
             {
                 // remove the file if it's empty
                 fs::remove(profile_path);
+                LOG_INFO << "Removed " << profile_path << " file.\n";
 
                 // remove parent folder if it's empty
                 fs::path parent_path = profile_path.parent_path();
                 if (fs::is_empty(parent_path))
                 {
-                    // todo remove or remove_all?
-                    fs::remove_all(parent_path);
+                    fs::remove(parent_path);
+                    LOG_INFO << "Removed " << parent_path << " folder.\n";
                 }
             }
             else
@@ -715,6 +722,7 @@ namespace mamba
                     if (!fs::exists(profile_path.parent_path()))
                     {
                         fs::create_directories(profile_path.parent_path());
+                        LOG_INFO << "Created " << profile_path.parent_path() << " folder.\n";
                     }
 
                     if (!found_mamba_initialize)
@@ -735,6 +743,38 @@ namespace mamba
             }
         }
         return false;
+    }
+
+    std::string find_powershell_paths(const std::string& exe)
+    {
+        std::string profile_var("$PROFILE.CurrentUserAllHosts");
+        // if (for_system)
+        //     profile = "$PROFILE.AllUsersAllHosts"
+
+        // There's several places PowerShell can store its path, depending
+        // on if it's Windows PowerShell, PowerShell Core on Windows, or
+        // PowerShell Core on macOS/Linux. The easiest way to resolve it is to
+        // just ask different possible installations of PowerShell where their
+        // profiles are.
+
+        try
+        {
+            std::string out, err;
+            auto [status, ec] = reproc::run(
+                std::vector<std::string>{ exe, "-NoProfile", "-Command", profile_var },
+                reproc::options{},
+                reproc::sink::string(out),
+                reproc::sink::string(err));
+            if (ec)
+            {
+                throw std::runtime_error(ec.message());
+            }
+            return std::string(strip(out));
+        }
+        catch (...)
+        {
+            return "";
+        }
     }
 
     void init_shell(const std::string& shell, const fs::path& conda_prefix)
@@ -772,38 +812,6 @@ namespace mamba
         }
         else if (shell == "powershell")
         {
-            std::string profile_var("$PROFILE.CurrentUserAllHosts");
-            // if (for_system)
-            //     profile = "$PROFILE.AllUsersAllHosts"
-
-            // There's several places PowerShell can store its path, depending
-            // on if it's Windows PowerShell, PowerShell Core on Windows, or
-            // PowerShell Core on macOS/Linux. The easiest way to resolve it is to
-            // just ask different possible installations of PowerShell where their
-            // profiles are.
-
-            auto find_powershell_paths = [&profile_var](const std::string& exe) -> std::string
-            {
-                try
-                {
-                    std::string out, err;
-                    auto [status, ec] = reproc::run(
-                        std::vector<std::string>{ exe, "-NoProfile", "-Command", profile_var },
-                        reproc::options{},
-                        reproc::sink::string(out),
-                        reproc::sink::string(err));
-                    if (ec)
-                    {
-                        throw std::runtime_error(ec.message());
-                    }
-                    return std::string(strip(out));
-                }
-                catch (...)
-                {
-                    return "";
-                }
-            };
-
             std::set<std::string> pwsh_profiles;
             for (auto& exe : std::vector<std::string>{ "powershell", "pwsh", "pwsh-preview" })
             {
@@ -834,7 +842,6 @@ namespace mamba
 
     void deinit_shell(const std::string& shell, const fs::path& conda_prefix)
     {
-        // todo implement for other shells, xonsh, fish, cmd.exe, powershell
         auto mamba_exe = get_self_exe_path();
         fs::path home = env::home_directory();
         if (shell == "bash")
@@ -862,30 +869,6 @@ namespace mamba
         }
         else if (shell == "powershell")
         {
-            // todo move to separate method
-            std::string profile_var("$PROFILE.CurrentUserAllHosts");
-            auto find_powershell_paths = [&profile_var](const std::string& exe) -> std::string
-            {
-                try
-                {
-                    std::string out, err;
-                    auto [status, ec] = reproc::run(
-                        std::vector<std::string>{ exe, "-NoProfile", "-Command", profile_var },
-                        reproc::options{},
-                        reproc::sink::string(out),
-                        reproc::sink::string(err));
-                    if (ec)
-                    {
-                        throw std::runtime_error(ec.message());
-                    }
-                    return std::string(strip(out));
-                }
-                catch (...)
-                {
-                    return "";
-                }
-            };
-
             std::set<std::string> pwsh_profiles;
             for (auto& exe : std::vector<std::string>{ "powershell", "pwsh", "pwsh-preview" })
             {
