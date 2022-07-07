@@ -191,9 +191,9 @@ namespace mamba
     std::string_view rstrip(const std::string_view& input, const std::string_view& chars);
 
     template<class CharType>
-    std::vector<std::basic_string<CharType>> split(const std::basic_string_view<CharType>& input,
-                                                        const std::basic_string_view<CharType>& sep,
-                                                        std::size_t max_split = SIZE_MAX)
+    inline std::vector<std::basic_string<CharType>> split(const std::basic_string_view<CharType>& input,
+                                                          const std::basic_string_view<CharType>& sep,
+                                                          std::size_t max_split = SIZE_MAX)
     {
         std::vector<std::basic_string<CharType>> result;
         std::size_t i = 0, j = 0, len = input.size(), n = sep.size();
@@ -214,6 +214,15 @@ namespace mamba
         }
         result.emplace_back(input.substr(j, len - j));
         return result;
+    }
+
+    // unfortunately, c++ doesn't support templating function s. t. strip(std::string, std::string)
+    // works, so this is a workaround that fixes it
+    inline std::vector<std::string> split(const std::string_view& input,
+                                          const std::string_view& sep,
+                                          std::size_t max_split = SIZE_MAX)
+    {
+        return split<char>(input, sep, max_split);
     }
 
     std::vector<std::string> rsplit(const std::string_view& input,
