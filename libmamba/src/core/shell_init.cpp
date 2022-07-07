@@ -70,6 +70,68 @@ namespace mamba
 
 // #define _WIN32
 #ifdef _WIN32
+    std::wstring init_cmd_exe_registry_key(std::wstring& prev_value,
+                                           std::wstring& hook_string)
+    {
+        std::wstring replace_str(L"__CONDA_REPLACE_ME_123__");
+        std::wregex hook_regex(L"(\"[^\"]*?mamba[-_]hook\\.bat\")",
+                               std::regex_constants::icase);
+        std::wstring replaced_value = std::regex_replace(
+            prev_value, hook_regex, replace_str, std::regex_constants::format_first_only);
+
+        std::wstring new_value = replaced_value;
+
+        if (replaced_value.find(replace_str) == std::wstring::npos)
+        {
+            if (!new_value.empty())
+            {
+                new_value += L" & " + hook_string;
+            }
+            else
+            {
+                new_value = hook_string;
+            }
+        }
+        else
+        {
+            replace_all(new_value, replace_str, hook_string);
+        }
+        return new_value;
+    }
+
+    std::wstring deinit_cmd_exe_registry_key(const std::wstring& prev_value,
+                                             const std::wstring& hook_string)
+    {
+        // remove the mamba hook from the autorun list
+        std::wstringstream stringstream(prev_value);
+        std::wstring segment;
+        std::vector<std::wstring> autorun_list;
+
+        autorun_list = split(std::wstring_view(prev_value), std::wstring_view(L"&"));
+
+        for (auto it = autorun_list.begin(); it != autorun_list.end(); ++it)
+        {
+            std::wstring stripped = wstrip(*it);
+            // delete if stripped version matches to hook_string
+            if (stripped == hook_string)
+            {
+                autorun_list.erase(it);
+
+                std::cout << "Removing from cmd.exe AUTORUN: " << termcolor::green;
+                std::wcout << hook_string;
+                std::cout << termcolor::reset << std::endl;
+                break;
+            }
+            else
+            {
+                *it = stripped;
+            }
+        }
+
+        // join the list back into a string
+        return join(L" & ", autorun_list);
+    }
+
     void init_cmd_exe_registry(const std::wstring& reg_path,
                                const fs::path& conda_prefix,
                                bool reverse)
@@ -88,78 +150,26 @@ namespace mamba
         std::wstring hook_string = std::wstring(L"\"")
                                    + (conda_prefix / "condabin" / "mamba_hook.bat").wstring()
                                    + std::wstring(L"\"");
+        std::wstring new_value;
         if (reverse)
         {
-            // remove the mamba hook from the autorun list
-            std::wstringstream stringstream(prev_value);
-            std::wstring segment;
-            std::vector<std::wstring> autorun_list;
-
-            autorun_list = split(std::wstring_view(prev_value), std::wstring_view(L"&"));
-
-            for (auto it = autorun_list.begin(); it != autorun_list.end(); ++it)
-            {
-                std::wstring stripped = wstrip(*it);
-                // delete if stripped version matches to hook_string
-                if (stripped == hook_string)
-                {
-                    autorun_list.erase(it);
-
-                    std::cout << "Removing from cmd.exe AUTORUN: " << termcolor::green;
-                    std::wcout << hook_string;
-                    std::cout << termcolor::reset << std::endl;
-                    break;
-                }
-                else
-                {
-                    *it = stripped;
-                }
-            }
-
-            // join the list back into a string
-            const std::wstring new_value = join(L" & ", autorun_list);
-
-            // set the autorun string
+            new_value = deinit_cmd_exe_registry_key(prev_value, hook_string);
+        }
+        else
+        {
+            new_value = init_cmd_exe_registry_key(prev_value, hook_string);
+        }
+        if (new_value != prev_value)
+        {
+            std::cout << "Adding to cmd.exe AUTORUN: " << termcolor::green;
+            std::wcout << new_value;
+            std::cout << termcolor::reset << std::endl;
             key.SetStringValue(L"AutoRun", new_value);
         }
         else
         {
-            std::wstring replace_str(L"__CONDA_REPLACE_ME_123__");
-            std::wregex hook_regex(L"(\"[^\"]*?mamba[-_]hook\\.bat\")",
-                                   std::regex_constants::icase);
-            std::wstring replaced_value = std::regex_replace(
-                prev_value, hook_regex, replace_str, std::regex_constants::format_first_only);
-
-            std::wstring new_value = replaced_value;
-
-            if (replaced_value.find(replace_str) == new_value.npos)
-            {
-                if (!new_value.empty())
-                {
-                    new_value += L" & " + hook_string;
-                }
-                else
-                {
-                    new_value = hook_string;
-                }
-            }
-            else
-            {
-                replace_all(new_value, replace_str, hook_string);
-            }
-
-            if (new_value != prev_value)
-            {
-                std::cout << "Adding to cmd.exe AUTORUN: " << termcolor::green;
-                std::wcout << new_value;
-                std::cout << termcolor::reset << std::endl;
-                key.SetStringValue(L"AutoRun", new_value);
-            }
-            else
-            {
-                std::cout << termcolor::green << "cmd.exe already initialized." << termcolor::reset
-                          << std::endl;
-            }
+            std::cout << termcolor::green << "cmd.exe already initialized." << termcolor::reset
+                      << std::endl;
         }
     }
 #endif // _WIN32
