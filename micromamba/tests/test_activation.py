@@ -440,23 +440,23 @@ class TestActivation:
         umamba = get_umamba(cwd=cwd)
 
         root_prefix_path = Path(self.root_prefix)
-        if shell == "bash" or shell == "zsh":
+        if interpreter == "bash" or interpreter == "zsh":
             files = [root_prefix_path / "etc" / "profile.d" / "micromamba.sh"]
-        elif shell == "cmd.exe":
+        elif interpreter == "cmd.exe":
             files = [root_prefix_path / "condabin" / "mambahook.bat",
                      root_prefix_path / "condabin" / "micromamba.bat",
                      root_prefix_path / "condabin" / "_mamba_activate.bat",
                      root_prefix_path / "condabin" / "activate.bat"]
-        elif shell == "powershell":
+        elif interpreter == "powershell":
             files = [root_prefix_path / "condabin" / "mambahook.ps1",
                      root_prefix_path / "condabin" / "Mamba.psm1"]
-        elif shell == "fish":
+        elif interpreter == "fish":
             # todo fish hook contents don't get created at the moment
             return
-        elif shell == "xonsh":
+        elif interpreter == "xonsh":
             files = [root_prefix_path / "etc" / "profile.d" / "mamba.xsh"]
         else:
-            raise ValueError(f"Unknown shell {shell}")
+            raise ValueError(f"Unknown shell {interpreter}")
 
         def call(command):
             return call_interpreter(command, tmp_path, interpreter)
