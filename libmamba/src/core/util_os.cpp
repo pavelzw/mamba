@@ -179,7 +179,7 @@ namespace mamba
         }
 
         prev_value = key.GetDwordValue(L"LongPathsEnabled");
-        if (prev_value == value)
+        if (prev_value == 1)
         {
             std::cout << termcolor::green << "Windows long-path support enabled."
                       << termcolor::reset << std::endl;
