@@ -246,6 +246,7 @@ namespace mamba
         return strip(input, WHITESPACES);
     }
 
+    //. todo one can deduplicate this code with the one in strip() by using C++ 20 with concepts
     std::wstring wstrip(const std::wstring& input)
     {
         return wstrip(input, WHITESPACES_WSTR);
