@@ -430,6 +430,81 @@ class TestActivation:
                 assert not find_path_in_str(self.root_prefix, x)
 
     @pytest.mark.parametrize("interpreter", get_interpreters())
+    def test_shell_deinit_root_prefix_files_removed(
+            self, tmp_path, interpreter, clean_shell_files, new_root_prefix
+    ):
+        if interpreter not in valid_interpreters:
+            pytest.skip(f"{interpreter} not available")
+
+        cwd = os.getcwd()
+        umamba = get_umamba(cwd=cwd)
+
+        def call(command):
+            return call_interpreter(command, tmp_path, interpreter)
+
+        s = [f"{umamba} shell init -p {new_root_prefix}"]
+        call(s)
+        s = [f"{umamba} shell deinit -p {new_root_prefix}"]
+        call(s)
+
+        root_prefix_path = Path(new_root_prefix)
+        if shell == "bash" or shell == "zsh":
+            files = [root_prefix_path / "etc" / "profile.d" / "micromamba.sh"]
+        elif shell == "cmd.exe":
+            files = [root_prefix_path / "condabin" / "mambahook.bat",
+                     root_prefix_path / "condabin" / "micromamba.bat",
+                     root_prefix_path / "condabin" / "_mamba_activate.bat",
+                     root_prefix_path / "condabin" / "activate.bat"]
+        elif shell == "powershell":
+            files = [root_prefix_path / "condabin" / "mambahook.ps1",
+                     root_prefix_path / "condabin" / "Mamba.psm1"]
+        elif shell == "fish":
+            # todo fish hook contents don't get created at the moment
+            return
+        elif shell == "xonsh":
+            files = [root_prefix_path / "etc" / "profile.d" / "mamba.xsh"]
+        else:
+            raise ValueError(f"Unknown shell {shell}")
+
+        for file in files:
+            assert not file.exists()
+
+    @pytest.mark.parametrize("interpreter", get_interpreters())
+    def test_shell_deinit_contents(
+            self, tmp_path, interpreter, clean_shell_files, new_root_prefix
+    ):
+        if interpreter not in valid_interpreters:
+            pytest.skip(f"{interpreter} not available")
+
+        cwd = os.getcwd()
+        umamba = get_umamba(cwd=cwd)
+
+        def call(command):
+            return call_interpreter(command, tmp_path, interpreter)
+
+        s = [f"{umamba} shell init -p {new_root_prefix}"]
+        call(s)
+        s = [f"{umamba} shell deinit -p {new_root_prefix}"]
+        call(s)
+
+        if interpreter == "cmd.exe":
+            value = read_windows_registry(regkey)
+            assert "mamba_hook.bat" not in value[0]
+            assert not find_path_in_str(new_root_prefix, value[0])
+        elif interpreter == "powershell":
+            path = Path(paths[plat][interpreter]).expanduser()
+            with open(path) as fi:
+                x = fi.read()
+                assert "#region mamba initialize" not in x
+                assert not find_path_in_str(new_root_prefix, x)
+        else:
+            path = Path(paths[plat][interpreter]).expanduser()
+            with open(path) as fi:
+                x = fi.read()
+                assert "# >>> mamba initialize >>>" not in x
+                assert not find_path_in_str(new_root_prefix, x)
+
+    @pytest.mark.parametrize("interpreter", get_interpreters())
     def test_activation(
         self, tmp_path, interpreter, clean_shell_files, new_root_prefix, clean_env
     ):
