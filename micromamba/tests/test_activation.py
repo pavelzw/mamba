@@ -439,7 +439,7 @@ class TestActivation:
         cwd = os.getcwd()
         umamba = get_umamba(cwd=cwd)
 
-        root_prefix_path = Path(new_root_prefix)
+        root_prefix_path = Path(self.root_prefix)
         if shell == "bash" or shell == "zsh":
             files = [root_prefix_path / "etc" / "profile.d" / "micromamba.sh"]
         elif shell == "cmd.exe":
@@ -461,13 +461,13 @@ class TestActivation:
         def call(command):
             return call_interpreter(command, tmp_path, interpreter)
 
-        s = [f"{umamba} shell init -p {new_root_prefix}"]
+        s = [f"{umamba} shell init -p {self.root_prefix}"]
         call(s)
 
         for file in files:
             assert file.exists()
 
-        s = [f"{umamba} shell deinit -p {new_root_prefix}"]
+        s = [f"{umamba} shell deinit -p {self.root_prefix}"]
         call(s)
 
         for file in files:
@@ -486,27 +486,27 @@ class TestActivation:
         def call(command):
             return call_interpreter(command, tmp_path, interpreter)
 
-        s = [f"{umamba} shell init -p {new_root_prefix}"]
+        s = [f"{umamba} shell init -p {self.root_prefix}"]
         call(s)
-        s = [f"{umamba} shell deinit -p {new_root_prefix}"]
+        s = [f"{umamba} shell deinit -p {self.root_prefix}"]
         call(s)
 
         if interpreter == "cmd.exe":
             value = read_windows_registry(regkey)
             assert "mamba_hook.bat" not in value[0]
-            assert not find_path_in_str(new_root_prefix, value[0])
+            assert not find_path_in_str(self.root_prefix, value[0])
         elif interpreter == "powershell":
             path = Path(paths[plat][interpreter]).expanduser()
             with open(path) as fi:
                 x = fi.read()
                 assert "#region mamba initialize" not in x
-                assert not find_path_in_str(new_root_prefix, x)
+                assert not find_path_in_str(self.root_prefix, x)
         else:
             path = Path(paths[plat][interpreter]).expanduser()
             with open(path) as fi:
                 x = fi.read()
                 assert "# >>> mamba initialize >>>" not in x
-                assert not find_path_in_str(new_root_prefix, x)
+                assert not find_path_in_str(self.root_prefix, x)
 
     @pytest.mark.parametrize("interpreter", get_interpreters())
     def test_activation(
