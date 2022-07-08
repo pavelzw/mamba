@@ -359,7 +359,7 @@ namespace mamba
         {
             conda_init_content = xonsh_content(conda_prefix, shell, mamba_exe);
         }
-        if (shell == "fish")
+        else if (shell == "fish")
         {
             conda_init_content = fish_content(conda_prefix, shell, mamba_exe);
         }
