@@ -160,15 +160,23 @@ namespace mamba
         }
         if (new_value != prev_value)
         {
-            std::cout << "Adding to cmd.exe AUTORUN: " << termcolor::green;
+            std::cout << "Setting cmd.exe AUTORUN to: " << termcolor::green;
             std::wcout << new_value;
             std::cout << termcolor::reset << std::endl;
             key.SetStringValue(L"AutoRun", new_value);
         }
         else
         {
-            std::cout << termcolor::green << "cmd.exe already initialized." << termcolor::reset
-                      << std::endl;
+            if (reverse)
+            {
+                std::cout << termcolor::green << "cmd.exe not initialized yet."
+                          << termcolor::reset << std::endl;
+            }
+            else
+            {
+                std::cout << termcolor::green << "cmd.exe already initialized." << termcolor::reset
+                          << std::endl;
+            }
         }
     }
 #endif // _WIN32
