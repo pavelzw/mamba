@@ -843,7 +843,7 @@ namespace mamba
             throw std::runtime_error("Support for other shells not yet implemented.");
         }
 #ifdef _WIN32
-        set_long_paths_support(1, false);
+        enable_long_paths_support(false);
 #endif
     }
 
@@ -895,11 +895,5 @@ namespace mamba
         }
 
         deinit_root_prefix(shell, conda_prefix);
-
-#ifdef _WIN32
-        if (Console::prompt("Do you want to disable long path support?", 'n')) {
-            set_long_paths_support(0, false);
-        }
-#endif
     }
 }
