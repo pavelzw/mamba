@@ -580,7 +580,7 @@ namespace mamba
             std::ofstream sh_file = open_ofstream(sh_source_path);
             sh_file << data_micromamba_sh;
         }
-        if (shell == "xonsh")
+        else if (shell == "xonsh")
         {
             XonshActivator a;
             auto sh_source_path = a.hook_source_path();
@@ -594,6 +594,10 @@ namespace mamba
             }
             std::ofstream sh_file = open_ofstream(sh_source_path);
             sh_file << data_mamba_xsh;
+        }
+        else if (shell == "fish")
+        {
+            // todo: implement fish activator
         }
         else if (shell == "cmd.exe")
         {
@@ -635,6 +639,10 @@ namespace mamba
 
             fs::remove(sh_source_path);
             LOG_INFO << "Removed " << sh_source_path << " file.\n";
+        }
+        else if (shell == "fish")
+        {
+            // todo: implement fish activator removal
         }
         else if (shell == "cmd.exe")
         {
