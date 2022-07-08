@@ -29,7 +29,7 @@ namespace mamba
 #endif
 
     void run_as_admin(const std::string& args);
-    bool set_long_paths_support(int value, bool force);
+    bool enable_long_paths_support(bool force);
     std::string windows_version();
     std::string macos_version();
     std::string linux_version();

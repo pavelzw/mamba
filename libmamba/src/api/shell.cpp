@@ -147,7 +147,7 @@ namespace mamba
 #ifdef _WIN32
         else if (action == "enable-long-paths-support")
         {
-            if (!set_long_paths_support(1, true))
+            if (!enable_long_paths_support(true))
             {
                 exit(1);
             }
