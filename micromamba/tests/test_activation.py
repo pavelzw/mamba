@@ -430,7 +430,7 @@ class TestActivation:
                 assert not find_path_in_str(self.root_prefix, x)
 
     @pytest.mark.parametrize("interpreter", get_interpreters())
-    def test_shell_deinit_root_prefix_files_removed(
+    def test_shell_init_deinit_root_prefix_files(
             self, tmp_path, interpreter, clean_shell_files, new_root_prefix
     ):
         if interpreter not in valid_interpreters:
@@ -438,14 +438,6 @@ class TestActivation:
 
         cwd = os.getcwd()
         umamba = get_umamba(cwd=cwd)
-
-        def call(command):
-            return call_interpreter(command, tmp_path, interpreter)
-
-        s = [f"{umamba} shell init -p {new_root_prefix}"]
-        call(s)
-        s = [f"{umamba} shell deinit -p {new_root_prefix}"]
-        call(s)
 
         root_prefix_path = Path(new_root_prefix)
         if shell == "bash" or shell == "zsh":
@@ -465,6 +457,18 @@ class TestActivation:
             files = [root_prefix_path / "etc" / "profile.d" / "mamba.xsh"]
         else:
             raise ValueError(f"Unknown shell {shell}")
+
+        def call(command):
+            return call_interpreter(command, tmp_path, interpreter)
+
+        s = [f"{umamba} shell init -p {new_root_prefix}"]
+        call(s)
+
+        for file in files:
+            assert file.exists()
+
+        s = [f"{umamba} shell deinit -p {new_root_prefix}"]
+        call(s)
 
         for file in files:
             assert not file.exists()
