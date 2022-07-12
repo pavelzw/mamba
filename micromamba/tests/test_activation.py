@@ -473,10 +473,10 @@ class TestActivation:
         for file in files:
             assert not file.exists()
 
-    @pytest.mark.parametrize("interpreter", "cmd.exe")
     def test_shell_init_deinit_contents_cmdexe(
-            self, tmp_path, interpreter, clean_shell_files, new_root_prefix
+            self, tmp_path, clean_shell_files, new_root_prefix
     ):
+        interpreter = "cmd.exe"
         if interpreter not in valid_interpreters:
             pytest.skip(f"{interpreter} not available")
 
