@@ -473,8 +473,8 @@ class TestActivation:
         for file in files:
             assert not file.exists()
 
-    @pytest.mark.parametrize("interpreter", get_interpreters())
-    def test_shell_deinit_contents(
+    @pytest.mark.parametrize("interpreter", "cmd.exe")
+    def test_shell_init_deinit_contents_cmdexe(
             self, tmp_path, interpreter, clean_shell_files, new_root_prefix
     ):
         if interpreter not in valid_interpreters:
@@ -486,27 +486,64 @@ class TestActivation:
         def call(command):
             return call_interpreter(command, tmp_path, interpreter)
 
+        prev_value = read_windows_registry(regkey)
+        assert "mamba_hook.bat" not in prev_value[0]
+        assert not find_path_in_str(self.root_prefix, prev_value[0])
+
         s = [f"{umamba} shell init -p {self.root_prefix}"]
         call(s)
+
+        value_after_init = read_windows_registry(regkey)
+        assert "mamba_hook.bat" in value_after_init[0]
+        assert find_path_in_str(self.root_prefix, value_after_init[0])
+
         s = [f"{umamba} shell deinit -p {self.root_prefix}"]
         call(s)
 
-        if interpreter == "cmd.exe":
-            value = read_windows_registry(regkey)
-            assert "mamba_hook.bat" not in value[0]
-            assert not find_path_in_str(self.root_prefix, value[0])
-        elif interpreter == "powershell":
-            path = Path(paths[plat][interpreter]).expanduser()
-            with open(path) as fi:
-                x = fi.read()
-                assert "#region mamba initialize" not in x
-                assert not find_path_in_str(self.root_prefix, x)
-        else:
-            path = Path(paths[plat][interpreter]).expanduser()
-            with open(path) as fi:
-                x = fi.read()
-                assert "# >>> mamba initialize >>>" not in x
-                assert not find_path_in_str(self.root_prefix, x)
+        value_after_deinit = read_windows_registry(regkey)
+        assert value_after_deinit == prev_value
+
+    @pytest.mark.parametrize("interpreter", get_interpreters(exclude=["cmd.exe"]))
+    def test_shell_init_deinit_contents(
+            self, tmp_path, interpreter, clean_shell_files, new_root_prefix
+    ):
+        if interpreter not in valid_interpreters:
+            pytest.skip(f"{interpreter} not available")
+
+        cwd = os.getcwd()
+        umamba = get_umamba(cwd=cwd)
+
+        def call(command):
+            return call_interpreter(command, tmp_path, interpreter)
+
+        path = Path(paths[plat][interpreter]).expanduser()
+        with open(path) as fi:
+            prev_rc_contents = fi.read()
+            if interpreter == "powershell":
+                assert "#region mamba initialize" not in prev_rc_contents
+            else:
+                assert "# >>> mamba initialize >>>" not in prev_rc_contents
+            assert not find_path_in_str(self.root_prefix, prev_rc_contents)
+
+        s = [f"{umamba} shell init -p {self.root_prefix}"]
+        call(s)
+
+        path = Path(paths[plat][interpreter]).expanduser()
+        with open(path) as fi:
+            rc_contents_after_init = fi.read()
+            if interpreter == "powershell":
+                assert "#region mamba initialize" in rc_contents_after_init
+            else:
+                assert "# >>> mamba initialize >>>" in rc_contents_after_init
+            assert find_path_in_str(self.root_prefix, rc_contents_after_init)
+
+        s = [f"{umamba} shell deinit -p {self.root_prefix}"]
+        call(s)
+
+        path = Path(paths[plat][interpreter]).expanduser()
+        with open(path) as fi:
+            rc_contents_after_deinit = fi.read()
+            assert rc_contents_after_deinit == prev_rc_contents
 
     @pytest.mark.parametrize("interpreter", get_interpreters())
     def test_activation(
