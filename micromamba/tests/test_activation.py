@@ -443,12 +443,12 @@ class TestActivation:
         if interpreter == "bash" or interpreter == "zsh":
             files = [root_prefix_path / "etc" / "profile.d" / "micromamba.sh"]
         elif interpreter == "cmd.exe":
-            files = [root_prefix_path / "condabin" / "mambahook.bat",
+            files = [root_prefix_path / "condabin" / "mamba_hook.bat",
                      root_prefix_path / "condabin" / "micromamba.bat",
                      root_prefix_path / "condabin" / "_mamba_activate.bat",
                      root_prefix_path / "condabin" / "activate.bat"]
         elif interpreter == "powershell":
-            files = [root_prefix_path / "condabin" / "mambahook.ps1",
+            files = [root_prefix_path / "condabin" / "mamba_hook.ps1",
                      root_prefix_path / "condabin" / "Mamba.psm1"]
         elif interpreter == "fish":
             # todo fish hook contents don't get created at the moment
