@@ -687,8 +687,12 @@ namespace mamba
         }
 
         std::string conda_init_content = powershell_contents(conda_prefix);
+
+        LOG_INFO << "profile_content:\n" << profile_content;
+
         bool found_mamba_initialize
             = profile_content.find("#region mamba initialize") != profile_content.npos;
+        // todo replace profile_content.npos with std::string::npos?
 
         if (reverse)
         {
@@ -709,10 +713,15 @@ namespace mamba
 
             if (found_mamba_initialize)
             {
+                // todo replace LOG_INFO with LOG_DEBUG
+                LOG_INFO << "Found mamba initialize...";
                 profile_content = std::regex_replace(
                     profile_content, CONDA_INITIALIZE_PS_RE_BLOCK, conda_init_content);
             }
         }
+
+        LOG_INFO << "profile_content:\n" << profile_content;
+        LOG_INFO << "profile_original_content:\n" << profile_original_content;
 
         if (profile_content != profile_original_content || !found_mamba_initialize)
         {
