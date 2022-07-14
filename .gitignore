@@ -63,3 +63,5 @@ _deps
 *.exe
 *.out
 *.app
+
+cmake-build-micromamba-static-debug/
