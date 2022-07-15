@@ -528,7 +528,6 @@ class TestActivation:
         s = [f"{umamba} shell init -p {self.root_prefix}"]
         call(s)
 
-        path = Path(paths[plat][interpreter]).expanduser()
         with open(path) as fi:
             rc_contents_after_init = fi.read()
             if interpreter == "powershell":
@@ -540,10 +539,12 @@ class TestActivation:
         s = [f"{umamba} shell deinit -p {self.root_prefix}"]
         call(s)
 
-        path = Path(paths[plat][interpreter]).expanduser()
-        with open(path) as fi:
-            rc_contents_after_deinit = fi.read()
-            assert rc_contents_after_deinit == prev_rc_contents
+        if os.path.exists(path):
+            with open(path) as fi:
+                rc_contents_after_deinit = fi.read()
+        else:
+            rc_contents_after_deinit = ""
+        assert rc_contents_after_deinit == prev_rc_contents
 
     @pytest.mark.parametrize("interpreter", get_interpreters())
     def test_activation(
