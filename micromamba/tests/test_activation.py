@@ -419,9 +419,10 @@ class TestActivation:
         if interpreter == "cmd.exe":
             x = read_windows_registry(regkey)[0]
             # CURRENTLY FAILING!
-            # assert "mamba" in x
-            # assert find_path_in_str(self.other_root_prefix, x)
-            # assert not find_path_in_str(self.root_prefix, x)
+            # todo what is wrong here?
+            assert "mamba" in x
+            assert find_path_in_str(self.other_root_prefix, x)
+            assert not find_path_in_str(self.root_prefix, x)
         else:
             with open(path) as fi:
                 x = fi.read()
