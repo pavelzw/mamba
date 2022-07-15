@@ -72,6 +72,11 @@ paths = {
     },
 }
 
+
+def extract_vars(vxs, interpreter):
+    return [f"echo {v}={shvar(v, interpreter)}" for v in vxs]
+
+
 if plat == "win":
     # find powershell profile path
     args = ["powershell", "-NoProfile", "-Command", "$PROFILE.CurrentUserAllHosts"]
@@ -268,14 +273,12 @@ valid_interpreters = get_valid_interpreters()
 
 
 def shvar(v, interpreter):
-    if interpreter in ["bash", "zsh"]:
+    if interpreter in ["bash", "zsh", "xonsh", "fish"]:
         return f"${v}"
     elif interpreter == "powershell":
         return f"$Env:{v}"
     elif interpreter == "cmd.exe":
         return f"%{v}%"
-    elif interpreter == "fish":
-        return f"${v}"
 
 
 class TestActivation:
@@ -565,17 +568,8 @@ class TestActivation:
             s, tmp_path, interpreter, interactive=True, env=clean_env
         )
 
-        if interpreter in ["bash", "zsh"]:
-            extract_vars = lambda vxs: [f"echo {v}=${v}" for v in vxs]
-        elif interpreter in ["cmd.exe"]:
-            extract_vars = lambda vxs: [f"echo {v}=%{v}%" for v in vxs]
-        elif interpreter in ["powershell"]:
-            extract_vars = lambda vxs: [f"echo {v}=$Env:{v}" for v in vxs]
-        elif interpreter in ["fish"]:
-            extract_vars = lambda vxs: [f"echo {v}=${v}" for v in vxs]
-
         rp = Path(self.root_prefix)
-        evars = extract_vars(["CONDA_PREFIX", "CONDA_SHLVL", "PATH"])
+        evars = extract_vars(["CONDA_PREFIX", "CONDA_SHLVL", "PATH"], interpreter)
 
         if interpreter == "cmd.exe":
             x = read_windows_registry(regkey)
@@ -684,17 +678,8 @@ class TestActivation:
             s, tmp_path, interpreter, interactive=True, env=clean_env
         )
 
-        if interpreter in ["bash", "zsh"]:
-            extract_vars = lambda vxs: [f"echo {v}=${v}" for v in vxs]
-        elif interpreter in ["cmd.exe"]:
-            extract_vars = lambda vxs: [f"echo {v}=%{v}%" for v in vxs]
-        elif interpreter in ["powershell"]:
-            extract_vars = lambda vxs: [f"echo {v}=$Env:{v}" for v in vxs]
-        elif interpreter in ["fish"]:
-            extract_vars = lambda vxs: [f"echo {v}=${v}" for v in vxs]
-
         rp = Path(self.root_prefix)
-        evars = extract_vars(["CONDA_PREFIX", "CONDA_SHLVL", "PATH"])
+        evars = extract_vars(["CONDA_PREFIX", "CONDA_SHLVL", "PATH"], interpreter)
 
         if interpreter == "cmd.exe":
             x = read_windows_registry(regkey)
