@@ -344,8 +344,7 @@ class TestActivation:
         if interpreter not in valid_interpreters:
             pytest.skip(f"{interpreter} not available")
 
-        cwd = os.getcwd()
-        umamba = get_umamba(cwd=cwd)
+        umamba = get_umamba()
         env = {"MAMBA_ROOT_PREFIX": self.root_prefix}
         call = lambda s: call_interpreter(s, tmp_path, interpreter)
 
@@ -438,8 +437,7 @@ class TestActivation:
         if interpreter not in valid_interpreters:
             pytest.skip(f"{interpreter} not available")
 
-        cwd = os.getcwd()
-        umamba = get_umamba(cwd=cwd)
+        umamba = get_umamba()
 
         root_prefix_path = Path(self.root_prefix)
         if interpreter == "bash" or interpreter == "zsh":
@@ -485,8 +483,7 @@ class TestActivation:
         if interpreter not in valid_interpreters:
             pytest.skip(f"{interpreter} not available")
 
-        cwd = os.getcwd()
-        umamba = get_umamba(cwd=cwd)
+        umamba = get_umamba()
 
         def call(command):
             return call_interpreter(command, tmp_path, interpreter)
@@ -515,8 +512,7 @@ class TestActivation:
         if interpreter not in valid_interpreters:
             pytest.skip(f"{interpreter} not available")
 
-        cwd = os.getcwd()
-        umamba = get_umamba(cwd=cwd)
+        umamba = get_umamba()
 
         def call(command):
             return call_interpreter(command, tmp_path, interpreter)
@@ -558,8 +554,7 @@ class TestActivation:
         if interpreter not in valid_interpreters:
             pytest.skip(f"{interpreter} not available")
 
-        cwd = os.getcwd()
-        umamba = get_umamba(cwd=cwd)
+        umamba = get_umamba()
 
         s = [f"{umamba} shell init -p {self.root_prefix}"]
         stdout, stderr = call_interpreter(s, tmp_path, interpreter)
@@ -668,8 +663,7 @@ class TestActivation:
         if interpreter not in valid_interpreters:
             pytest.skip(f"{interpreter} not available")
 
-        cwd = os.getcwd()
-        umamba = get_umamba(cwd=cwd)
+        umamba = get_umamba()
 
         s = [f"{umamba} shell init -p {self.root_prefix}"]
         stdout, stderr = call_interpreter(s, tmp_path, interpreter)

@@ -94,7 +94,7 @@ class TestShell:
                 raise (e)
 
         def custom_shell(shell):
-            umamba = get_umamba(cwd=os.getcwd())
+            umamba = get_umamba()
             f_name = os.path.join(
                 TestShell.root_prefix, "shell_script_" + random_string()
             )
