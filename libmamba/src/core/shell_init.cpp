@@ -675,13 +675,14 @@ namespace mamba
         return out.str();
     }
 
-    bool init_powershell(const fs::path& profile_path, const fs::path& conda_prefix, bool reverse)
+    bool init_powershell(const fs::path& profile_path, const fs::path& conda_prefix)
     {
         // NB: the user may not have created a profile. We need to check
         //     if the file exists first.
         std::string profile_content, profile_original_content;
         if (fs::exists(profile_path))
         {
+            LOG_INFO << "Found existing PowerShell profile at " << profile_path << ".\n";
             profile_content = read_contents(profile_path);
             profile_original_content = profile_content;
         }
@@ -694,30 +695,18 @@ namespace mamba
             = profile_content.find("#region mamba initialize") != profile_content.npos;
         // todo replace profile_content.npos with std::string::npos?
 
-        if (reverse)
-        {
-            Console::stream() << "Removing the following in your " << profile_path
-                              << " file\n"
-                              << termcolor::colorize << termcolor::green
-                              << "#region mamba initialize\n...\n#endregion\n"
-                              << termcolor::reset;
-            profile_content = std::regex_replace(profile_content, CONDA_INITIALIZE_PS_RE_BLOCK, "");
-        }
-        else
-        {
-            // Find what content we need to add.
-            Console::stream() << "Adding (or replacing) the following in your " << profile_path
-                              << " file\n"
-                              << termcolor::colorize << termcolor::green << conda_init_content
-                              << termcolor::reset;
+        // Find what content we need to add.
+        Console::stream() << "Adding (or replacing) the following in your " << profile_path
+                          << " file\n"
+                          << termcolor::colorize << termcolor::green << conda_init_content
+                          << termcolor::reset;
 
-            if (found_mamba_initialize)
-            {
-                // todo replace LOG_INFO with LOG_DEBUG
-                LOG_INFO << "Found mamba initialize...";
-                profile_content = std::regex_replace(
-                    profile_content, CONDA_INITIALIZE_PS_RE_BLOCK, conda_init_content);
-            }
+        if (found_mamba_initialize)
+        {
+            // todo replace LOG_INFO with LOG_DEBUG
+            LOG_INFO << "Found mamba initialize...";
+            profile_content = std::regex_replace(
+                profile_content, CONDA_INITIALIZE_PS_RE_BLOCK, conda_init_content);
         }
 
         LOG_INFO << "profile_content:\n" << profile_content;
@@ -725,47 +714,78 @@ namespace mamba
 
         if (profile_content != profile_original_content || !found_mamba_initialize)
         {
+            if (!Context::instance().dry_run)
+            {
+                if (!fs::exists(profile_path.parent_path()))
+                {
+                    fs::create_directories(profile_path.parent_path());
+                    LOG_INFO << "Created " << profile_path.parent_path() << " folder.\n";
+                }
+
+                if (!found_mamba_initialize)
+                {
+                    std::ofstream out
+                        = open_ofstream(profile_path, std::ios::app | std::ios::binary);
+                    out << conda_init_content;
+                }
+                else
+                {
+                    std::ofstream out
+                        = open_ofstream(profile_path, std::ios::out | std::ios::binary);
+                    out << profile_content;
+                }
+
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool deinit_powershell(const fs::path& profile_path, const fs::path& conda_prefix)
+    {
+        if (!fs::exists(profile_path))
+        {
+            LOG_INFO << "No existing PowerShell profile at " << profile_path << ".";
+            return true;
+        }
+
+        std::string profile_content = read_contents(profile_path);
+
+        // todo replace LOG_INFO with LOG_DEBUG
+        LOG_INFO << "profile_content:\n" << profile_content;
+
+        Console::stream() << "Removing the following in your " << profile_path
+                          << " file\n"
+                          << termcolor::colorize << termcolor::green
+                          << "#region mamba initialize\n...\n#endregion\n"
+                          << termcolor::reset;
+
+        profile_content = std::regex_replace(profile_content, CONDA_INITIALIZE_PS_RE_BLOCK, "");
+
+        if (!Context::instance().dry_run)
+        {
             if (strip(profile_content).empty())
             {
-                // remove the file if it's empty
                 fs::remove(profile_path);
-                LOG_INFO << "Removed " << profile_path << " file.\n";
+                LOG_INFO << "Removed " << profile_path << " file because it's empty.\n";
 
                 // remove parent folder if it's empty
                 fs::path parent_path = profile_path.parent_path();
                 if (fs::is_empty(parent_path))
                 {
                     fs::remove(parent_path);
-                    LOG_INFO << "Removed " << parent_path << " folder.\n";
+                    LOG_INFO << "Removed " << parent_path << " folder because it's empty.\n";
                 }
             }
             else
             {
-                if (!Context::instance().dry_run)
-                {
-                    if (!fs::exists(profile_path.parent_path()))
-                    {
-                        fs::create_directories(profile_path.parent_path());
-                        LOG_INFO << "Created " << profile_path.parent_path() << " folder.\n";
-                    }
-
-                    if (!found_mamba_initialize)
-                    {
-                        std::ofstream out
-                            = open_ofstream(profile_path, std::ios::app | std::ios::binary);
-                        out << conda_init_content;
-                    }
-                    else
-                    {
-                        std::ofstream out
-                            = open_ofstream(profile_path, std::ios::out | std::ios::binary);
-                        out << profile_content;
-                    }
-
-                    return true;
-                }
+                std::ofstream out = open_ofstream(profile_path, std::ios::out | std::ios::binary);
+                out << profile_content;
             }
+
+            return true;
         }
+
         return false;
     }
 
@@ -850,7 +870,7 @@ namespace mamba
                         pwsh_profiles.insert(profile_path);
                         Console::stream()
                             << "Init " << exe << " profile at '" << profile_path << "'";
-                        init_powershell(profile_path, conda_prefix, false);
+                        init_powershell(profile_path, conda_prefix);
                     }
                 }
             }
@@ -899,10 +919,8 @@ namespace mamba
                 auto profile_path = find_powershell_paths(exe);
                 if (!profile_path.empty())
                 {
-                    Console::stream()
-                        << "Deinit " << exe << " profile at '" << profile_path << "'";
-                    init_powershell(profile_path, conda_prefix, true);
-
+                    Console::stream() << "Deinit " << exe << " profile at '" << profile_path << "'";
+                    deinit_powershell(profile_path, conda_prefix);
                 }
             }
         }
