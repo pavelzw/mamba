@@ -133,7 +133,7 @@ jobs:
         shell: bash -l -eo pipefail {0}
         run: |
           sudo apt-get install zsh xonsh fish -y
-      - name: install fish in mac
+      - name: install xonsh and fish in mac
         if: matrix.os == 'macos-latest'
         shell: bash -l -eo pipefail {0}
         run: |
