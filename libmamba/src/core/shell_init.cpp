@@ -388,13 +388,12 @@ namespace mamba
     }
 
     void reset_rc_file(const fs::path& file_path,
-                       const fs::path& conda_prefix,  // todo remove conda prefix
                        const std::string& shell,
                        const fs::path& mamba_exe)
     {
         Console::stream() << "Resetting RC file " << file_path
-                          << "\nDeleting config for root prefix " << termcolor::bold << conda_prefix
-                          << termcolor::reset << "\nClearing mamba executable environment variable";
+                          << "\nDeleting config for root prefix "
+                          << "\nClearing mamba executable environment variable";
 
         std::string conda_init_content, rc_content;
 
@@ -413,7 +412,7 @@ namespace mamba
                           << "# >>> mamba initialize >>>\n...\n# <<< mamba initialize <<<\n"
                           << termcolor::reset;
 
-        if (rc_content.find("# >>> mamba initialize >>>") == rc_content.npos)
+        if (rc_content.find("# >>> mamba initialize >>>") == std::string::npos)
         {
             LOG_INFO << "No mamba initialize block found, nothing to do.";
             return;
@@ -556,7 +555,7 @@ namespace mamba
             if (fs::exists(d) && fs::is_empty(d))
             {
                 fs::remove(d);
-                LOG_INFO << "Removed " << scripts << " directory.\n";
+                LOG_INFO << "Removed " << d << " directory.\n";
             }
         }
     }
@@ -653,7 +652,11 @@ namespace mamba
         }
         else if (shell == "fish")
         {
-            // todo: implement fish activator removal
+            FishActivator a;
+            auto sh_source_path = a.hook_source_path();
+
+            fs::remove(sh_source_path);
+            LOG_INFO << "Removed " << sh_source_path << " file.\n";
         }
         else if (shell == "cmd.exe")
         {
@@ -667,6 +670,13 @@ namespace mamba
             fs::path mamba_psm1_f = root_prefix / "condabin" / "Mamba.psm1";
             fs::remove(mamba_psm1_f);
             LOG_INFO << "Removed " << mamba_psm1_f << " file.\n";
+
+            if (fs::exists(root_prefix / "condabin") && fs::is_empty(root_prefix / "condabin"))
+            {
+                fs::remove(root_prefix / "condabin");
+                LOG_INFO << "Removed " << root_prefix / "condabin"
+                         << " directory.\n";
+            }
         }
     }
 
@@ -700,11 +710,8 @@ namespace mamba
 
         std::string conda_init_content = powershell_contents(conda_prefix);
 
-        LOG_INFO << "profile_content:\n" << profile_content;
-
         bool found_mamba_initialize
-            = profile_content.find("#region mamba initialize") != profile_content.npos;
-        // todo replace profile_content.npos with std::string::npos?
+            = profile_content.find("#region mamba initialize") != std::string::npos;
 
         // Find what content we need to add.
         Console::stream() << "Adding (or replacing) the following in your " << profile_path
@@ -714,14 +721,13 @@ namespace mamba
 
         if (found_mamba_initialize)
         {
-            // todo replace LOG_INFO with LOG_DEBUG
-            LOG_INFO << "Found mamba initialize...";
+            LOG_DEBUG << "Found mamba initialize. Replacing mamba initialize block.\n";
             profile_content = std::regex_replace(
                 profile_content, CONDA_INITIALIZE_PS_RE_BLOCK, conda_init_content);
         }
 
-        LOG_INFO << "profile_content:\n" << profile_content;
-        LOG_INFO << "profile_original_content:\n" << profile_original_content;
+        LOG_DEBUG << "Original profile content:\n" << profile_original_content << "\n";
+        LOG_DEBUG << "Profile content:\n" << profile_content << "\n";
 
         if (profile_content != profile_original_content || !found_mamba_initialize)
         {
@@ -761,9 +767,7 @@ namespace mamba
         }
 
         std::string profile_content = read_contents(profile_path);
-
-        // todo replace LOG_INFO with LOG_DEBUG
-        LOG_INFO << "profile_content:\n" << profile_content;
+        LOG_DEBUG << "Original profile content:\n" << profile_content << "\n";
 
         Console::stream() << "Removing the following in your " << profile_path << " file\n"
                           << termcolor::colorize << termcolor::green
@@ -771,6 +775,7 @@ namespace mamba
                           << termcolor::reset;
 
         profile_content = std::regex_replace(profile_content, CONDA_INITIALIZE_PS_RE_BLOCK, "");
+        LOG_DEBUG << "Profile content:\n" << profile_content << "\n";
 
         if (!Context::instance().dry_run)
         {
@@ -901,17 +906,17 @@ namespace mamba
         if (shell == "bash")
         {
             fs::path bashrc_path = (on_mac || on_win) ? home / ".bash_profile" : home / ".bashrc";
-            reset_rc_file(bashrc_path, conda_prefix, shell, mamba_exe);
+            reset_rc_file(bashrc_path, shell, mamba_exe);
         }
         else if (shell == "zsh")
         {
             fs::path zshrc_path = home / ".zshrc";
-            reset_rc_file(zshrc_path, conda_prefix, shell, mamba_exe);
+            reset_rc_file(zshrc_path, shell, mamba_exe);
         }
         else if (shell == "fish")
         {
             fs::path fishrc_path = home / ".config" / "fish" / "config.fish";
-            reset_rc_file(fishrc_path, conda_prefix, shell, mamba_exe);
+            reset_rc_file(fishrc_path, shell, mamba_exe);
         }
         else if (shell == "cmd.exe")
         {

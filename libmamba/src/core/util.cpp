@@ -247,12 +247,12 @@ namespace mamba
     }
 
     // todo one can deduplicate this code with the one in strip() by using C++ 20 with concepts
-    std::wstring wstrip(const std::wstring& input)
+    std::wstring_view wstrip(const std::wstring_view& input)
     {
         return wstrip(input, WHITESPACES_WSTR);
     }
 
-    std::wstring wstrip(const std::wstring& input, const std::wstring& chars)
+    std::wstring_view wstrip(const std::wstring_view& input, const std::wstring_view& chars)
     {
         size_t start = input.find_first_not_of(chars);
         if (start == std::string::npos)
