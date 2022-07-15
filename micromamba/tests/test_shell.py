@@ -247,14 +247,3 @@ class TestShell:
             assert Path(os.path.join(TestShell.root_prefix, "condabin")).is_dir()
 
         shell("init", "-y", "-s", shell_type, "-p", TestShell.current_root_prefix)
-
-    @pytest.mark.parametrize("shell_type", ["bash", "powershell", "cmd.exe"])
-    @pytest.mark.parametrize("prefix_selector", [None, "prefix"])
-    @pytest.mark.parametrize(
-        "multiple_time,same_prefix", ((False, None), (True, False), (True, True))
-    )
-    def test_deinit(self, shell_type, prefix_selector, multiple_time, same_prefix):
-        skip_if_shell_incompat(shell_type)
-
-        # todo
-        assert True

@@ -61,11 +61,13 @@ paths = {
     "osx": {
         "zsh": "~/.zshrc",
         "bash": "~/.bash_profile",
+        "xonsh": "~/.xonshrc",
         "fish": "~/.config/fish/config.fish",
     },
     "linux": {
         "zsh": "~/.zshrc",
         "bash": "~/.bashrc",
+        "xonsh": "~/.xonshrc",
         "fish": "~/.config/fish/config.fish",
     },
 }
@@ -112,6 +114,7 @@ shell_files = [
         "~/.bash_profile",
         "~/.zshrc",
         "~/.zsh_profile",
+        "~/.xonshrc",
         "~/.config/fish/config.fish",
     ]
 ]
@@ -245,7 +248,9 @@ def call_interpreter(s, tmp_path, interpreter, interactive=False, env=None):
     return stdout, stderr
 
 
-def get_interpreters(exclude=[]):
+def get_interpreters(exclude=None):
+    if exclude is None:
+        exclude = []
     return [x for x in possible_interpreters[running_os] if x not in exclude]
 
 
@@ -418,8 +423,6 @@ class TestActivation:
 
         if interpreter == "cmd.exe":
             x = read_windows_registry(regkey)[0]
-            # CURRENTLY FAILING!
-            # todo what is wrong here?
             assert "mamba" in x
             assert find_path_in_str(self.other_root_prefix, x)
             assert not find_path_in_str(self.root_prefix, x)
@@ -452,8 +455,7 @@ class TestActivation:
             files = [root_prefix_path / "condabin" / "mamba_hook.ps1",
                      root_prefix_path / "condabin" / "Mamba.psm1"]
         elif interpreter == "fish":
-            # todo fish hook contents don't get created at the moment
-            return
+            files = [root_prefix_path / "etc" / "fish" / "conf.d" / "mamba.fish"]
         elif interpreter == "xonsh":
             files = [root_prefix_path / "etc" / "profile.d" / "mamba.xsh"]
         else:
