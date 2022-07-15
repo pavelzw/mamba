@@ -340,7 +340,7 @@ namespace mamba
                         const std::string& shell,
                         const fs::path& mamba_exe)
     {
-        Console::stream() << "Modifiying RC file " << file_path
+        Console::stream() << "Modifying RC file " << file_path
                           << "\nGenerating config for root prefix " << termcolor::bold
                           << conda_prefix << termcolor::reset
                           << "\nSetting mamba executable to: " << termcolor::bold << mamba_exe
@@ -374,7 +374,7 @@ namespace mamba
         std::string result
             = std::regex_replace(rc_content, CONDA_INITIALIZE_RE_BLOCK, conda_init_content);
 
-        if (result.find("# >>> mamba initialize >>>") == result.npos)
+        if (result.find("# >>> mamba initialize >>>") == std::string::npos)
         {
             std::ofstream rc_file = open_ofstream(file_path, std::ios::app | std::ios::binary);
             rc_file << conda_init_content;
@@ -912,6 +912,11 @@ namespace mamba
         {
             fs::path zshrc_path = home / ".zshrc";
             reset_rc_file(zshrc_path, shell, mamba_exe);
+        }
+        else if (shell == "xonsh")
+        {
+            fs::path xonshrc_path = home / ".xonshrc";
+            reset_rc_file(xonshrc_path, shell, mamba_exe);
         }
         else if (shell == "fish")
         {
