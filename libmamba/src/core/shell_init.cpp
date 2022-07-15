@@ -597,7 +597,18 @@ namespace mamba
         }
         else if (shell == "fish")
         {
-            // todo: implement fish activator
+            FishActivator a;
+            auto sh_source_path = a.hook_source_path();
+            try
+            {
+                fs::create_directories(sh_source_path.parent_path());
+            }
+            catch (...)
+            {
+                // Maybe the prefix isn't writable. No big deal, just keep going.
+            }
+            std::ofstream sh_file = open_ofstream(sh_source_path);
+            sh_file << data_mamba_fish;
         }
         else if (shell == "cmd.exe")
         {
