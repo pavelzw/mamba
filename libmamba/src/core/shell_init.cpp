@@ -68,7 +68,6 @@ namespace mamba
         return "";
     }
 
-#define _WIN32
 #ifdef _WIN32
     std::wstring init_cmd_exe_registry_key(std::wstring& prev_value, std::wstring& hook_string)
     {
