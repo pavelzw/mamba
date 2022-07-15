@@ -97,14 +97,9 @@ def write_script(interpreter, lines, path):
     return fname
 
 
-def emit_check(cond):
-    return cmds.if_(cond).then_(cmds.echo("YES")).else_(cmds.echo("NOPE"))
-
-
 possible_interpreters = {
     "win": {"powershell", "cmd.exe"},
-    # 'unix': {'bash', 'zsh', 'xonsh'},
-    "unix": {"bash", "zsh", "fish"},
+    "unix": {"bash", "zsh", "fish", "xonsh"},
 }
 
 shell_files = [
