@@ -68,6 +68,7 @@ namespace mamba
         return "";
     }
 
+#define _WIN32
 #ifdef _WIN32
     std::wstring init_cmd_exe_registry_key(std::wstring& prev_value, std::wstring& hook_string)
     {
@@ -108,7 +109,7 @@ namespace mamba
 
         for (auto it = autorun_list.begin(); it != autorun_list.end(); ++it)
         {
-            std::wstring stripped = wstrip(*it);
+            std::wstring_view stripped = wstrip(*it);
             // delete if stripped version matches to hook_string
             if (stripped == hook_string)
             {
