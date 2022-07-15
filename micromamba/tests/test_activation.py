@@ -435,7 +435,7 @@ class TestActivation:
 
     @pytest.mark.parametrize("interpreter", get_interpreters())
     def test_shell_init_deinit_root_prefix_files(
-            self, tmp_path, interpreter, clean_shell_files, new_root_prefix
+        self, tmp_path, interpreter, clean_shell_files, new_root_prefix
     ):
         if interpreter not in valid_interpreters:
             pytest.skip(f"{interpreter} not available")
@@ -447,13 +447,17 @@ class TestActivation:
         if interpreter == "bash" or interpreter == "zsh":
             files = [root_prefix_path / "etc" / "profile.d" / "micromamba.sh"]
         elif interpreter == "cmd.exe":
-            files = [root_prefix_path / "condabin" / "mamba_hook.bat",
-                     root_prefix_path / "condabin" / "micromamba.bat",
-                     root_prefix_path / "condabin" / "_mamba_activate.bat",
-                     root_prefix_path / "condabin" / "activate.bat"]
+            files = [
+                root_prefix_path / "condabin" / "mamba_hook.bat",
+                root_prefix_path / "condabin" / "micromamba.bat",
+                root_prefix_path / "condabin" / "_mamba_activate.bat",
+                root_prefix_path / "condabin" / "activate.bat",
+            ]
         elif interpreter == "powershell":
-            files = [root_prefix_path / "condabin" / "mamba_hook.ps1",
-                     root_prefix_path / "condabin" / "Mamba.psm1"]
+            files = [
+                root_prefix_path / "condabin" / "mamba_hook.ps1",
+                root_prefix_path / "condabin" / "Mamba.psm1",
+            ]
         elif interpreter == "fish":
             files = [root_prefix_path / "etc" / "fish" / "conf.d" / "mamba.fish"]
         elif interpreter == "xonsh":
@@ -477,7 +481,7 @@ class TestActivation:
             assert not file.exists()
 
     def test_shell_init_deinit_contents_cmdexe(
-            self, tmp_path, clean_shell_files, new_root_prefix
+        self, tmp_path, clean_shell_files, new_root_prefix
     ):
         interpreter = "cmd.exe"
         if interpreter not in valid_interpreters:
@@ -508,7 +512,7 @@ class TestActivation:
 
     @pytest.mark.parametrize("interpreter", get_interpreters(exclude=["cmd.exe"]))
     def test_shell_init_deinit_contents(
-            self, tmp_path, interpreter, clean_shell_files, new_root_prefix
+        self, tmp_path, interpreter, clean_shell_files, new_root_prefix
     ):
         if interpreter not in valid_interpreters:
             pytest.skip(f"{interpreter} not available")

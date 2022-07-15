@@ -46,8 +46,7 @@ init_shell_parser(CLI::App* subcom)
                                      .group("cli")
                                      .description("The action to complete"));
     subcom->add_option("action", action.get_cli_config<std::string>(), action.description())
-        ->check(CLI::IsMember(std::vector<std::string>({
-                                                         "init",
+        ->check(CLI::IsMember(std::vector<std::string>({ "init",
                                                          "deinit",
                                                          "hook",
                                                          "activate",

@@ -69,12 +69,10 @@ namespace mamba
     }
 
 #ifdef _WIN32
-    std::wstring init_cmd_exe_registry_key(std::wstring& prev_value,
-                                           std::wstring& hook_string)
+    std::wstring init_cmd_exe_registry_key(std::wstring& prev_value, std::wstring& hook_string)
     {
         std::wstring replace_str(L"__CONDA_REPLACE_ME_123__");
-        std::wregex hook_regex(L"(\"[^\"]*?mamba[-_]hook\\.bat\")",
-                               std::regex_constants::icase);
+        std::wregex hook_regex(L"(\"[^\"]*?mamba[-_]hook\\.bat\")", std::regex_constants::icase);
         std::wstring replaced_value = std::regex_replace(
             prev_value, hook_regex, replace_str, std::regex_constants::format_first_only);
 
@@ -169,8 +167,8 @@ namespace mamba
         {
             if (reverse)
             {
-                std::cout << termcolor::green << "cmd.exe not initialized yet."
-                          << termcolor::reset << std::endl;
+                std::cout << termcolor::green << "cmd.exe not initialized yet." << termcolor::reset
+                          << std::endl;
             }
             else
             {
@@ -179,7 +177,7 @@ namespace mamba
             }
         }
     }
-#endif // _WIN32
+#endif  // _WIN32
 
     // this function calls cygpath to convert win path to unix
     std::string native_path_to_unix(const std::string& path, bool is_a_path_env)
@@ -390,14 +388,13 @@ namespace mamba
     }
 
     void reset_rc_file(const fs::path& file_path,
-                       const fs::path& conda_prefix, // todo remove conda prefix
+                       const fs::path& conda_prefix,  // todo remove conda prefix
                        const std::string& shell,
                        const fs::path& mamba_exe)
     {
         Console::stream() << "Resetting RC file " << file_path
-                          << "\nDeleting config for root prefix " << termcolor::bold
-                          << conda_prefix << termcolor::reset
-                          << "\nClearing mamba executable environment variable";
+                          << "\nDeleting config for root prefix " << termcolor::bold << conda_prefix
+                          << termcolor::reset << "\nClearing mamba executable environment variable";
 
         std::string conda_init_content, rc_content;
 
@@ -411,8 +408,7 @@ namespace mamba
             rc_content = read_contents(file_path, std::ios::in);
         }
 
-        Console::stream() << "Removing the following in your " << file_path
-                          << " file\n"
+        Console::stream() << "Removing the following in your " << file_path << " file\n"
                           << termcolor::colorize << termcolor::green
                           << "# >>> mamba initialize >>>\n...\n# <<< mamba initialize <<<\n"
                           << termcolor::reset;
@@ -423,8 +419,7 @@ namespace mamba
             return;
         }
 
-        std::string result
-            = std::regex_replace(rc_content, CONDA_INITIALIZE_RE_BLOCK, "");
+        std::string result = std::regex_replace(rc_content, CONDA_INITIALIZE_RE_BLOCK, "");
 
         std::ofstream rc_file = open_ofstream(file_path, std::ios::out | std::ios::binary);
         rc_file << result;
@@ -536,14 +531,19 @@ namespace mamba
         auto scripts_activate_bat = root_prefix / "Scripts" / "activate.bat";
         auto mamba_hook_bat = root_prefix / "condabin" / "mamba_hook.bat";
 
-        for (auto& f : {micromamba_bat, _mamba_activate_bat, condabin_activate_bat, scripts_activate_bat, mamba_hook_bat})
+        for (auto& f : { micromamba_bat,
+                         _mamba_activate_bat,
+                         condabin_activate_bat,
+                         scripts_activate_bat,
+                         mamba_hook_bat })
         {
             if (fs::exists(f))
             {
                 fs::remove(f);
                 LOG_INFO << "Removed " << f << " file.\n";
             }
-            else {
+            else
+            {
                 LOG_INFO << "Could not remove " << f << " because it doesn't exist.\n";
             }
         }
@@ -551,7 +551,7 @@ namespace mamba
         // remove condabin and Scripts if empty
         auto condabin = root_prefix / "condabin";
         auto scripts = root_prefix / "Scripts";
-        for (auto& d : {condabin, scripts})
+        for (auto& d : { condabin, scripts })
         {
             if (fs::exists(d) && fs::is_empty(d))
             {
@@ -765,8 +765,7 @@ namespace mamba
         // todo replace LOG_INFO with LOG_DEBUG
         LOG_INFO << "profile_content:\n" << profile_content;
 
-        Console::stream() << "Removing the following in your " << profile_path
-                          << " file\n"
+        Console::stream() << "Removing the following in your " << profile_path << " file\n"
                           << termcolor::colorize << termcolor::green
                           << "#region mamba initialize\n...\n#endregion\n"
                           << termcolor::reset;
