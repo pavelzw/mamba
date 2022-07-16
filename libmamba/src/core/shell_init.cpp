@@ -52,7 +52,8 @@ namespace mamba
         {
             return "zsh";
         }
-        if (contains(parent_process_name, "xonsh"))
+        // xonsh in unix, Python in macOS
+        if (contains(parent_process_name, "xonsh") || contains(parent_process_name, "Python"))
         {
             return "xonsh";
         }
