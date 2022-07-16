@@ -518,13 +518,17 @@ class TestActivation:
             return call_interpreter(command, tmp_path, interpreter)
 
         path = Path(paths[plat][interpreter]).expanduser()
-        with open(path) as fi:
-            prev_rc_contents = fi.read()
-            if interpreter == "powershell":
-                assert "#region mamba initialize" not in prev_rc_contents
-            else:
-                assert "# >>> mamba initialize >>>" not in prev_rc_contents
-            assert not find_path_in_str(self.root_prefix, prev_rc_contents)
+
+        if os.path.exists(path):
+            with open(path) as fi:
+                prev_rc_contents = fi.read()
+        else:
+            prev_rc_contents = ""
+        if interpreter == "powershell":
+            assert "#region mamba initialize" not in prev_rc_contents
+        else:
+            assert "# >>> mamba initialize >>>" not in prev_rc_contents
+        assert not find_path_in_str(self.root_prefix, prev_rc_contents)
 
         s = [f"{umamba} shell init -p {self.root_prefix}"]
         call(s)
