@@ -41,6 +41,9 @@ namespace mamba
     {
         std::string parent_process_name = get_process_name_by_pid(getppid());
 
+        // todo replace with log_debug
+        LOG_INFO << "Guessing shell. Parent process name: " << parent_process_name << "\n";
+
         if (contains(parent_process_name, "bash"))
         {
             return "bash";
