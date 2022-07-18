@@ -41,7 +41,7 @@ namespace mamba
     {
         std::string parent_process_name = get_process_name_by_pid(getppid());
 
-        LOG_DEBUG << "Guessing shell. Parent process name: " << parent_process_name << "\n";
+        LOG_DEBUG << "Guessing shell. Parent process name: " << parent_process_name;
 
         if (contains(parent_process_name, "bash"))
         {
@@ -72,8 +72,45 @@ namespace mamba
     }
 
 #ifdef _WIN32
-    std::wstring init_cmd_exe_registry_key(std::wstring& prev_value, std::wstring& hook_string)
+    std::wstring get_autorun_registry_key(const std::wstring& reg_path)
     {
+        winreg::RegKey key{ HKEY_CURRENT_USER, reg_path };
+        std::wstring content;
+        try
+        {
+            content = key.GetStringValue(L"AutoRun");
+        }
+        catch (const std::exception&)
+        {
+            LOG_INFO << "No AutoRun key detected.";
+        }
+        return content;
+    }
+
+    std::wstring set_autorun_registry_key(const std::wstring& reg_path, const std::wstring& value)
+    {
+        std::cout << "Setting cmd.exe AUTORUN to: " << termcolor::green;
+        std::wcout << value;
+        std::cout << termcolor::reset << std::endl;
+
+        winreg::RegKey key{ HKEY_CURRENT_USER, reg_path };
+        key.SetStringValue(L"AutoRun", value);
+    }
+
+    std::wstring get_hook_string(const fs::path& conda_prefix)
+    {
+        // std::wstring hook_path = '"%s"' % join(conda_prefix, 'condabin', 'conda_hook.bat')
+        std::wstring hook_string = std::wstring(L"\"")
+                                   + (conda_prefix / "condabin" / "mamba_hook.bat").wstring()
+                                   + std::wstring(L"\"");
+    }
+
+    void init_cmd_exe_registry(const std::wstring& reg_path, const fs::path& conda_prefix)
+    {
+        std::wstring prev_value = get_autorun_registry_key(reg_path);
+        std::wstring hook_string = get_hook_string(conda_prefix);
+
+        // modify registry key
         std::wstring replace_str(L"__CONDA_REPLACE_ME_123__");
         std::wregex hook_regex(L"(\"[^\"]*?mamba[-_]hook\\.bat\")", std::regex_constants::icase);
         std::wstring replaced_value = std::regex_replace(
@@ -96,12 +133,25 @@ namespace mamba
         {
             replace_all(new_value, replace_str, hook_string);
         }
-        return new_value;
+
+        // set modified registry key
+        if (new_value != prev_value)
+        {
+            set_autorun_registry_key(reg_path, new_value);
+        }
+        else
+        {
+            std::cout << termcolor::green << "cmd.exe already initialized." << termcolor::reset
+                      << std::endl;
+        }
     }
 
-    std::wstring deinit_cmd_exe_registry_key(const std::wstring& prev_value,
-                                             const std::wstring& hook_string)
+    void deinit_cmd_exe_registry(const std::wstring& reg_path, const fs::path& conda_prefix)
     {
+        std::wstring prev_value = get_autorun_registry_key(reg_path);
+        std::wstring hook_string = get_hook_string(conda_prefix);
+
+        // modify registry key
         // remove the mamba hook from the autorun list
         std::wstringstream stringstream(prev_value);
         std::wstring segment;
@@ -120,64 +170,24 @@ namespace mamba
                 std::cout << "Removing from cmd.exe AUTORUN: " << termcolor::green;
                 std::wcout << hook_string;
                 std::cout << termcolor::reset << std::endl;
-                break;
             }
             else
             {
                 *it = stripped;
             }
         }
-
         // join the list back into a string
-        return join(L" & ", autorun_list);
-    }
+        std::wstring new_value = join(L" & ", autorun_list);
 
-    void init_cmd_exe_registry(const std::wstring& reg_path,
-                               const fs::path& conda_prefix,
-                               bool reverse)
-    {
-        winreg::RegKey key{ HKEY_CURRENT_USER, reg_path };
-        std::wstring prev_value;
-        try
-        {
-            prev_value = key.GetStringValue(L"AutoRun");
-        }
-        catch (const std::exception&)
-        {
-            LOG_INFO << "No AutoRun key detected.";
-        }
-        // std::wstring hook_path = '"%s"' % join(conda_prefix, 'condabin', 'conda_hook.bat')
-        std::wstring hook_string = std::wstring(L"\"")
-                                   + (conda_prefix / "condabin" / "mamba_hook.bat").wstring()
-                                   + std::wstring(L"\"");
-        std::wstring new_value;
-        if (reverse)
-        {
-            new_value = deinit_cmd_exe_registry_key(prev_value, hook_string);
-        }
-        else
-        {
-            new_value = init_cmd_exe_registry_key(prev_value, hook_string);
-        }
+        // set modified registry key
         if (new_value != prev_value)
         {
-            std::cout << "Setting cmd.exe AUTORUN to: " << termcolor::green;
-            std::wcout << new_value;
-            std::cout << termcolor::reset << std::endl;
-            key.SetStringValue(L"AutoRun", new_value);
+            set_autorun_registry_key(reg_path, new_value);
         }
         else
         {
-            if (reverse)
-            {
-                std::cout << termcolor::green << "cmd.exe not initialized yet." << termcolor::reset
-                          << std::endl;
-            }
-            else
-            {
-                std::cout << termcolor::green << "cmd.exe already initialized." << termcolor::reset
-                          << std::endl;
-            }
+            std::cout << termcolor::green << "cmd.exe not initialized yet." << termcolor::reset
+                      << std::endl;
         }
     }
 #endif  // _WIN32
@@ -542,11 +552,11 @@ namespace mamba
             if (fs::exists(f))
             {
                 fs::remove(f);
-                LOG_INFO << "Removed " << f << " file.\n";
+                LOG_INFO << "Removed " << f << " file.";
             }
             else
             {
-                LOG_INFO << "Could not remove " << f << " because it doesn't exist.\n";
+                LOG_INFO << "Could not remove " << f << " because it doesn't exist.";
             }
         }
 
@@ -558,7 +568,7 @@ namespace mamba
             if (fs::exists(d) && fs::is_empty(d))
             {
                 fs::remove(d);
-                LOG_INFO << "Removed " << d << " directory.\n";
+                LOG_INFO << "Removed " << d << " directory.";
             }
         }
     }
@@ -643,7 +653,7 @@ namespace mamba
             auto sh_source_path = a.hook_source_path();
 
             fs::remove(sh_source_path);
-            LOG_INFO << "Removed " << sh_source_path << " file.\n";
+            LOG_INFO << "Removed " << sh_source_path << " file.";
         }
         else if (shell == "xonsh")
         {
@@ -651,7 +661,7 @@ namespace mamba
             auto sh_source_path = a.hook_source_path();
 
             fs::remove(sh_source_path);
-            LOG_INFO << "Removed " << sh_source_path << " file.\n";
+            LOG_INFO << "Removed " << sh_source_path << " file.";
         }
         else if (shell == "fish")
         {
@@ -659,7 +669,7 @@ namespace mamba
             auto sh_source_path = a.hook_source_path();
 
             fs::remove(sh_source_path);
-            LOG_INFO << "Removed " << sh_source_path << " file.\n";
+            LOG_INFO << "Removed " << sh_source_path << " file.";
         }
         else if (shell == "cmd.exe")
         {
@@ -669,16 +679,16 @@ namespace mamba
         {
             fs::path mamba_hook_f = root_prefix / "condabin" / "mamba_hook.ps1";
             fs::remove(mamba_hook_f);
-            LOG_INFO << "Removed " << mamba_hook_f << " file.\n";
+            LOG_INFO << "Removed " << mamba_hook_f << " file.";
             fs::path mamba_psm1_f = root_prefix / "condabin" / "Mamba.psm1";
             fs::remove(mamba_psm1_f);
-            LOG_INFO << "Removed " << mamba_psm1_f << " file.\n";
+            LOG_INFO << "Removed " << mamba_psm1_f << " file.";
 
             if (fs::exists(root_prefix / "condabin") && fs::is_empty(root_prefix / "condabin"))
             {
                 fs::remove(root_prefix / "condabin");
                 LOG_INFO << "Removed " << root_prefix / "condabin"
-                         << " directory.\n";
+                         << " directory.";
             }
         }
     }
@@ -706,7 +716,7 @@ namespace mamba
         std::string profile_content, profile_original_content;
         if (fs::exists(profile_path))
         {
-            LOG_INFO << "Found existing PowerShell profile at " << profile_path << ".\n";
+            LOG_INFO << "Found existing PowerShell profile at " << profile_path << ".";
             profile_content = read_contents(profile_path);
             profile_original_content = profile_content;
         }
@@ -724,39 +734,39 @@ namespace mamba
 
         if (found_mamba_initialize)
         {
-            LOG_DEBUG << "Found mamba initialize. Replacing mamba initialize block.\n";
+            LOG_DEBUG << "Found mamba initialize. Replacing mamba initialize block.";
             profile_content = std::regex_replace(
                 profile_content, CONDA_INITIALIZE_PS_RE_BLOCK, conda_init_content);
         }
 
-        LOG_DEBUG << "Original profile content:\n" << profile_original_content << "\n";
-        LOG_DEBUG << "Profile content:\n" << profile_content << "\n";
+        LOG_DEBUG << "Original profile content:\n" << profile_original_content;
+        LOG_DEBUG << "Profile content:\n" << profile_content;
 
         if (profile_content != profile_original_content || !found_mamba_initialize)
         {
-            if (!Context::instance().dry_run)
+            if (Context::instance().dry_run)
             {
-                if (!fs::exists(profile_path.parent_path()))
-                {
-                    fs::create_directories(profile_path.parent_path());
-                    LOG_INFO << "Created " << profile_path.parent_path() << " folder.\n";
-                }
-
-                if (!found_mamba_initialize)
-                {
-                    std::ofstream out
-                        = open_ofstream(profile_path, std::ios::app | std::ios::binary);
-                    out << conda_init_content;
-                }
-                else
-                {
-                    std::ofstream out
-                        = open_ofstream(profile_path, std::ios::out | std::ios::binary);
-                    out << profile_content;
-                }
-
-                return true;
+                return false;
             }
+
+            if (!fs::exists(profile_path.parent_path()))
+            {
+                fs::create_directories(profile_path.parent_path());
+                LOG_INFO << "Created " << profile_path.parent_path() << " folder.";
+            }
+
+            if (!found_mamba_initialize)
+            {
+                std::ofstream out = open_ofstream(profile_path, std::ios::app | std::ios::binary);
+                out << conda_init_content;
+            }
+            else
+            {
+                std::ofstream out = open_ofstream(profile_path, std::ios::out | std::ios::binary);
+                out << profile_content;
+            }
+
+            return true;
         }
         return false;
     }
@@ -770,7 +780,7 @@ namespace mamba
         }
 
         std::string profile_content = read_contents(profile_path);
-        LOG_DEBUG << "Original profile content:\n" << profile_content << "\n";
+        LOG_DEBUG << "Original profile content:\n" << profile_content;
 
         Console::stream() << "Removing the following in your " << profile_path << " file\n"
                           << termcolor::colorize << termcolor::green
@@ -778,21 +788,21 @@ namespace mamba
                           << termcolor::reset;
 
         profile_content = std::regex_replace(profile_content, CONDA_INITIALIZE_PS_RE_BLOCK, "");
-        LOG_DEBUG << "Profile content:\n" << profile_content << "\n";
+        LOG_DEBUG << "Profile content:\n" << profile_content;
 
         if (!Context::instance().dry_run)
         {
             if (strip(profile_content).empty())
             {
                 fs::remove(profile_path);
-                LOG_INFO << "Removed " << profile_path << " file because it's empty.\n";
+                LOG_INFO << "Removed " << profile_path << " file because it's empty.";
 
                 // remove parent folder if it's empty
                 fs::path parent_path = profile_path.parent_path();
                 if (fs::is_empty(parent_path))
                 {
                     fs::remove(parent_path);
-                    LOG_INFO << "Removed " << parent_path << " folder because it's empty.\n";
+                    LOG_INFO << "Removed " << parent_path << " folder because it's empty.";
                 }
             }
             else
@@ -833,8 +843,9 @@ namespace mamba
             }
             return std::string(strip(out));
         }
-        catch (...)
+        catch (const std::exception& ex)
         {
+            LOG_DEBUG << "Failed to find PowerShell profile paths: " << ex.what();
             return "";
         }
     }
@@ -869,7 +880,7 @@ namespace mamba
 #ifndef _WIN32
             throw std::runtime_error("CMD.EXE can only be initialized on Windows.");
 #else
-            init_cmd_exe_registry(L"Software\\Microsoft\\Command Processor", conda_prefix, false);
+            init_cmd_exe_registry(L"Software\\Microsoft\\Command Processor", conda_prefix);
 #endif
         }
         else if (shell == "powershell")
@@ -931,7 +942,7 @@ namespace mamba
 #ifndef _WIN32
             throw std::runtime_error("CMD.EXE can only be deinitialized on Windows.");
 #else
-            init_cmd_exe_registry(L"Software\\Microsoft\\Command Processor", conda_prefix, true);
+            deinit_cmd_exe_registry(L"Software\\Microsoft\\Command Processor", conda_prefix);
 #endif
         }
         else if (shell == "powershell")
