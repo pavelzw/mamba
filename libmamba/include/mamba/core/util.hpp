@@ -180,13 +180,26 @@ namespace mamba
 
     bool starts_with_any(const std::string_view& str, const std::vector<std::string_view>& prefix);
 
+    template <class CharType>
+    inline std::basic_string_view<CharType> strip(const std::basic_string_view<CharType>& input,
+                                                  const std::basic_string_view<CharType>& chars)
+    {
+        size_t start = input.find_first_not_of(chars);
+        if (start == std::basic_string<CharType>::npos)
+        {
+            return std::basic_string_view<CharType>();
+        }
+        size_t stop = input.find_last_not_of(chars) + 1;
+        size_t length = stop - start;
+        return length == 0 ? std::basic_string_view<CharType>() : input.substr(start, length);
+    }
+
     std::string_view strip(const std::string_view& input);
-    std::wstring_view wstrip(const std::wstring_view& input);
+    std::wstring_view strip(const std::wstring_view& input);
     std::string_view lstrip(const std::string_view& input);
     std::string_view rstrip(const std::string_view& input);
 
     std::string_view strip(const std::string_view& input, const std::string_view& chars);
-    std::wstring_view wstrip(const std::wstring_view& input, const std::wstring_view& chars);
     std::string_view lstrip(const std::string_view& input, const std::string_view& chars);
     std::string_view rstrip(const std::string_view& input, const std::string_view& chars);
 

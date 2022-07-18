@@ -161,7 +161,7 @@ namespace mamba
 
         for (auto it = autorun_list.begin(); it != autorun_list.end(); ++it)
         {
-            std::wstring_view stripped = wstrip(*it);
+            std::wstring_view stripped = strip(*it);
             // delete if stripped version matches to hook_string
             if (stripped == hook_string)
             {

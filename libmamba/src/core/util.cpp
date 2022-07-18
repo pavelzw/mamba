@@ -243,25 +243,18 @@ namespace mamba
 
     std::string_view strip(const std::string_view& input)
     {
-        return strip(input, WHITESPACES);
+        return strip<char>(input, WHITESPACES);
     }
 
-    // todo one can deduplicate this code with the one in strip() by using C++ 20 with concepts
-    std::wstring_view wstrip(const std::wstring_view& input)
+    // todo one could deduplicate this code with the one in strip() by using C++ 20 with concepts
+    std::wstring_view strip(const std::wstring_view& input)
     {
-        return wstrip(input, WHITESPACES_WSTR);
+        return strip<wchar_t>(input, WHITESPACES_WSTR);
     }
 
-    std::wstring_view wstrip(const std::wstring_view& input, const std::wstring_view& chars)
+    std::string_view strip(const std::string_view& input, const std::string_view& chars)
     {
-        size_t start = input.find_first_not_of(chars);
-        if (start == std::string::npos)
-        {
-            return L"";
-        }
-        size_t stop = input.find_last_not_of(chars) + 1;
-        size_t length = stop - start;
-        return length == 0 ? L"" : input.substr(start, length);
+        return strip<char>(input, chars);
     }
 
     std::string_view lstrip(const std::string_view& input)
@@ -272,18 +265,6 @@ namespace mamba
     std::string_view rstrip(const std::string_view& input)
     {
         return rstrip(input, WHITESPACES);
-    }
-
-    std::string_view strip(const std::string_view& input, const std::string_view& chars)
-    {
-        size_t start = input.find_first_not_of(chars);
-        if (start == std::string::npos)
-        {
-            return "";
-        }
-        size_t stop = input.find_last_not_of(chars) + 1;
-        size_t length = stop - start;
-        return length == 0 ? "" : input.substr(start, length);
     }
 
     std::string_view lstrip(const std::string_view& input, const std::string_view& chars)
