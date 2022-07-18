@@ -87,7 +87,7 @@ namespace mamba
         return content;
     }
 
-    std::wstring set_autorun_registry_key(const std::wstring& reg_path, const std::wstring& value)
+    void set_autorun_registry_key(const std::wstring& reg_path, const std::wstring& value)
     {
         std::cout << "Setting cmd.exe AUTORUN to: " << termcolor::green;
         std::wcout << value;
@@ -99,10 +99,9 @@ namespace mamba
 
     std::wstring get_hook_string(const fs::path& conda_prefix)
     {
-        // std::wstring hook_path = '"%s"' % join(conda_prefix, 'condabin', 'conda_hook.bat')
-        std::wstring hook_string = std::wstring(L"\"")
-                                   + (conda_prefix / "condabin" / "mamba_hook.bat").wstring()
-                                   + std::wstring(L"\"");
+        // '"%s"' % join(conda_prefix, 'condabin', 'conda_hook.bat')
+        return std::wstring(L"\"") + (conda_prefix / "condabin" / "mamba_hook.bat").wstring()
+               + std::wstring(L"\"");
     }
 
     void init_cmd_exe_registry(const std::wstring& reg_path, const fs::path& conda_prefix)
