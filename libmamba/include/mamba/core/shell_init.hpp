@@ -27,9 +27,7 @@ namespace mamba
     std::string guess_shell();
 
 #ifdef _WIN32
-    void init_cmd_exe_registry(const std::wstring& reg_path,
-                               const fs::path& conda_prefix,
-                               bool reverse = false);
+    void init_cmd_exe_registry(const std::wstring& reg_path, const fs::path& conda_prefix);
 #endif
 
     fs::path get_self_exe_path();
