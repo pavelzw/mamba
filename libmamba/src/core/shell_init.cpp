@@ -166,25 +166,19 @@ namespace mamba
 
         autorun_list = split(std::wstring_view(prev_value), std::wstring_view(L"&"));
 
-        for (auto it = autorun_list.begin(); it != autorun_list.end(); ++it)
-        {
-            std::wstring_view stripped = strip(*it);
-            // delete if stripped version matches to hook_string
-            if (stripped == hook_string)
-            {
-                autorun_list.erase(it);
+        // remove the mamba hook from the autorun list
+        autorun_list.erase(std::remove_if(autorun_list.begin(),
+                                          autorun_list.end(),
+                                          [&hook_string](const std::wstring& s)
+                                          { return strip(s) == hook_string; }),
+                           autorun_list.end());
 
-                std::cout << "Removing from cmd.exe AUTORUN: " << termcolor::green;
-                std::wcout << hook_string;
-                std::cout << termcolor::reset << std::endl;
-            }
-            else
-            {
-                *it = stripped;
-            }
-        }
         // join the list back into a string
         std::wstring new_value = join(L" & ", autorun_list);
+
+        std::cout << "Setting cmd.exe AUTORUN to: " << termcolor::green;
+        std::wcout << new_value;
+        std::cout << termcolor::reset << std::endl;
 
         // set modified registry key
         if (new_value != prev_value)
