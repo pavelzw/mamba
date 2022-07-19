@@ -43,28 +43,36 @@ namespace mamba
 
         LOG_DEBUG << "Guessing shell. Parent process name: " << parent_process_name;
 
-        if (contains(parent_process_name, "bash"))
+        std::string parent_process_name_lower = to_lower(parent_process_name);
+
+        if (contains(parent_process_name_lower, "bash"))
         {
             return "bash";
         }
-        if (contains(parent_process_name, "zsh"))
+        if (contains(parent_process_name_lower, "zsh"))
         {
             return "zsh";
         }
         // xonsh in unix, Python in macOS
-        if (contains(parent_process_name, "xonsh") || contains(parent_process_name, "Python"))
+        if (contains(parent_process_name_lower, "Python"))
+        {
+            Console::stream() << "Your parent process name is " << parent_process_name
+                              << ".\nIf your shell is xonsh, please use \"-s xonsh\"." << std::endl;
+        }
+        if (contains(parent_process_name_lower, "xonsh"))
         {
             return "xonsh";
         }
-        if (contains(parent_process_name, "cmd.exe"))
+        if (contains(parent_process_name_lower, "cmd.exe"))
         {
             return "cmd.exe";
         }
-        if (contains(parent_process_name, "powershell") || contains(parent_process_name, "pwsh"))
+        if (contains(parent_process_name_lower, "powershell")
+            || contains(parent_process_name_lower, "pwsh"))
         {
             return "powershell";
         }
-        if (contains(parent_process_name, "fish"))
+        if (contains(parent_process_name_lower, "fish"))
         {
             return "fish";
         }

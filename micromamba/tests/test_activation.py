@@ -73,6 +73,12 @@ paths = {
 }
 
 
+def xonsh_shell_args(interpreter):
+    # In macOS, the parent process name is "Python" and not "xonsh" like in Linux.
+    # Thus, we need to specify the shell explicitly.
+    return "-s xonsh" if interpreter == "xonsh" and plat == "osx" else ""
+
+
 def extract_vars(vxs, interpreter):
     return [f"echo {v}={shvar(v, interpreter)}" for v in vxs]
 
@@ -354,7 +360,7 @@ class TestActivation:
         assert stdout == self.root_prefix
 
         # TODO remove root prefix here
-        s = [f"{umamba} shell init -p {rpv}"]
+        s = [f"{umamba} shell init -p {rpv} {xonsh_shell_args(interpreter)}"]
         stdout, stderr = call(s)
 
         if interpreter == "cmd.exe":
@@ -370,7 +376,7 @@ class TestActivation:
                 assert find_path_in_str(self.root_prefix, x)
                 prev_text = x
 
-        s = [f"{umamba} shell init -p {rpv}"]
+        s = [f"{umamba} shell init -p {rpv} {xonsh_shell_args(interpreter)}"]
         stdout, stderr = call(s)
 
         if interpreter == "cmd.exe":
@@ -415,7 +421,9 @@ class TestActivation:
                 assert "mamba" in x
                 assert text == x
 
-        s = [f"{umamba} shell init -p {self.other_root_prefix}"]
+        s = [
+            f"{umamba} shell init -p {self.other_root_prefix} {xonsh_shell_args(interpreter)}"
+        ]
         stdout, stderr = call(s)
 
         if interpreter == "cmd.exe":
@@ -464,13 +472,17 @@ class TestActivation:
         def call(command):
             return call_interpreter(command, tmp_path, interpreter)
 
-        s = [f"{umamba} shell init -p {self.root_prefix}"]
+        s = [
+            f"{umamba} shell init -p {self.root_prefix} {xonsh_shell_args(interpreter)}"
+        ]
         call(s)
 
         for file in files:
             assert file.exists()
 
-        s = [f"{umamba} shell deinit -p {self.root_prefix}"]
+        s = [
+            f"{umamba} shell deinit -p {self.root_prefix} {xonsh_shell_args(interpreter)}"
+        ]
         call(s)
 
         for file in files:
@@ -492,14 +504,18 @@ class TestActivation:
         assert "mamba_hook.bat" not in prev_value[0]
         assert not find_path_in_str(self.root_prefix, prev_value[0])
 
-        s = [f"{umamba} shell init -p {self.root_prefix}"]
+        s = [
+            f"{umamba} shell init -p {self.root_prefix} {xonsh_shell_args(interpreter)}"
+        ]
         call(s)
 
         value_after_init = read_windows_registry(regkey)
         assert "mamba_hook.bat" in value_after_init[0]
         assert find_path_in_str(self.root_prefix, value_after_init[0])
 
-        s = [f"{umamba} shell deinit -p {self.root_prefix}"]
+        s = [
+            f"{umamba} shell deinit -p {self.root_prefix} {xonsh_shell_args(interpreter)}"
+        ]
         call(s)
 
         value_after_deinit = read_windows_registry(regkey)
@@ -530,7 +546,9 @@ class TestActivation:
             assert "# >>> mamba initialize >>>" not in prev_rc_contents
         assert not find_path_in_str(self.root_prefix, prev_rc_contents)
 
-        s = [f"{umamba} shell init -p {self.root_prefix}"]
+        s = [
+            f"{umamba} shell init -p {self.root_prefix} {xonsh_shell_args(interpreter)}"
+        ]
         call(s)
 
         with open(path) as fi:
@@ -541,7 +559,9 @@ class TestActivation:
                 assert "# >>> mamba initialize >>>" in rc_contents_after_init
             assert find_path_in_str(self.root_prefix, rc_contents_after_init)
 
-        s = [f"{umamba} shell deinit -p {self.root_prefix}"]
+        s = [
+            f"{umamba} shell deinit -p {self.root_prefix} {xonsh_shell_args(interpreter)}"
+        ]
         call(s)
 
         if os.path.exists(path):
