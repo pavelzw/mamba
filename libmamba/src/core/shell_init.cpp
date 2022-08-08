@@ -745,9 +745,8 @@ namespace mamba
             = profile_content.find("#region mamba initialize") != std::string::npos;
 
         // Find what content we need to add.
-        Console::stream() << "Adding (or replacing) the following in your " << profile_path
-                          << " file\n"
-                          << conda_init_content;
+        std::cout << "Adding (or replacing) the following in your " << profile_path << " file\n"
+                  << conda_init_content;
 
         if (found_mamba_initialize)
         {
@@ -799,8 +798,8 @@ namespace mamba
         std::string profile_content = read_contents(profile_path);
         LOG_DEBUG << "Original profile content:\n" << profile_content;
 
-        Console::stream() << "Removing the following in your " << profile_path << " file\n"
-                          << "#region mamba initialize\n...\n#endregion\n";
+        std::cout << "Removing the following in your " << profile_path << " file\n"
+                  << "#region mamba initialize\n...\n#endregion\n";
 
         profile_content = std::regex_replace(profile_content, CONDA_INITIALIZE_PS_RE_BLOCK, "");
         LOG_DEBUG << "Profile content:\n" << profile_content;
