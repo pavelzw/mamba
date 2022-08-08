@@ -747,7 +747,7 @@ namespace mamba
         // Find what content we need to add.
         Console::stream() << "Adding (or replacing) the following in your " << profile_path
                           << " file\n"
-                          << termcolor::green << conda_init_content << termcolor::reset;
+                          << conda_init_content;
 
         if (found_mamba_initialize)
         {
@@ -800,9 +800,7 @@ namespace mamba
         LOG_DEBUG << "Original profile content:\n" << profile_content;
 
         Console::stream() << "Removing the following in your " << profile_path << " file\n"
-                          << termcolor::colorize << termcolor::green
-                          << "#region mamba initialize\n...\n#endregion\n"
-                          << termcolor::reset;
+                          << "#region mamba initialize\n...\n#endregion\n";
 
         profile_content = std::regex_replace(profile_content, CONDA_INITIALIZE_PS_RE_BLOCK, "");
         LOG_DEBUG << "Profile content:\n" << profile_content;
