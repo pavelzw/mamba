@@ -747,8 +747,7 @@ namespace mamba
         // Find what content we need to add.
         Console::stream() << "Adding (or replacing) the following in your " << profile_path
                           << " file\n"
-                          << termcolor::colorize << termcolor::green << conda_init_content
-                          << termcolor::reset;
+                          << termcolor::green << conda_init_content << termcolor::reset;
 
         if (found_mamba_initialize)
         {
