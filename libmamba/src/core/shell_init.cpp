@@ -968,7 +968,8 @@ namespace mamba
                 auto profile_path = find_powershell_paths(exe);
                 if (!profile_path.empty())
                 {
-                    Console::stream() << "Deinit " << exe << " profile at '" << profile_path << "'";
+                    //                    Console::stream() << "Deinit " << exe << " profile at '"
+                    //                    << profile_path << "'";
                     deinit_powershell(profile_path, conda_prefix);
                 }
             }
