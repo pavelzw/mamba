@@ -745,8 +745,9 @@ namespace mamba
             = profile_content.find("#region mamba initialize") != std::string::npos;
 
         // Find what content we need to add.
-        std::cout << "Adding (or replacing) the following in your " << profile_path << " file\n"
-                  << conda_init_content;
+        //        Console::stream() << "Adding (or replacing) the following in your " <<
+        //        profile_path << " file\n"
+        //                          << conda_init_content;
 
         if (found_mamba_initialize)
         {
@@ -798,8 +799,9 @@ namespace mamba
         std::string profile_content = read_contents(profile_path);
         LOG_DEBUG << "Original profile content:\n" << profile_content;
 
-        std::cout << "Removing the following in your " << profile_path << " file\n"
-                  << "#region mamba initialize\n...\n#endregion\n";
+        //        Console::stream() << "Removing the following in your " << profile_path << "
+        //        file\n"
+        //                          << "#region mamba initialize\n...\n#endregion\n";
 
         profile_content = std::regex_replace(profile_content, CONDA_INITIALIZE_PS_RE_BLOCK, "");
         LOG_DEBUG << "Profile content:\n" << profile_content;
@@ -909,8 +911,9 @@ namespace mamba
                     else
                     {
                         pwsh_profiles.insert(profile_path);
-                        Console::stream()
-                            << "Init " << exe << " profile at '" << profile_path << "'";
+                        //                        Console::stream()
+                        //                            << "Init " << exe << " profile at '" <<
+                        //                            profile_path << "'";
                         init_powershell(profile_path, conda_prefix);
                     }
                 }

@@ -149,8 +149,7 @@ namespace mamba
 
         if (prev_value == 1)
         {
-            std::cout << termcolor::green << "Windows long-path support already enabled."
-                      << termcolor::reset << std::endl;
+            std::cout << "Windows long-path support already enabled." << std::endl;
             return true;
         }
 
@@ -181,8 +180,7 @@ namespace mamba
         prev_value = key.GetDwordValue(L"LongPathsEnabled");
         if (prev_value == 1)
         {
-            std::cout << termcolor::green << "Windows long-path support enabled."
-                      << termcolor::reset << std::endl;
+            std::cout << "Windows long-path support enabled." << std::endl;
             return true;
         }
         LOG_WARNING << "Changing registry value did not succeed.";
