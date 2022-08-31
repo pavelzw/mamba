@@ -442,6 +442,7 @@ class TestInstall:
     def test_python_pinning(self, existing_cache):
         install("python=3.9", no_dry_run=True)
         res = install("setuptools=28.4.0", "--no-py-pin", "--json")
+        print("RES", res)
 
         keys = {"success", "prefix", "actions", "dry_run"}
         assert keys.issubset(set(res.keys()))
@@ -451,14 +452,18 @@ class TestInstall:
 
         expected_packages = {"python", "python_abi"}
         link_packages = {pkg["name"] for pkg in res["actions"]["LINK"]}
+        print("LINK", link_packages)
         assert expected_packages.issubset(link_packages)
         unlink_packages = {pkg["name"] for pkg in res["actions"]["UNLINK"]}
+        print("UNLINK", unlink_packages)
         assert expected_packages.issubset(unlink_packages)
 
         py_pkg = [pkg for pkg in res["actions"]["LINK"] if pkg["name"] == "python"][0]
+        print("PY", py_pkg)
         assert not py_pkg["version"].startswith("3.9")
 
         py_pkg = [pkg for pkg in res["actions"]["UNLINK"] if pkg["name"] == "python"][0]
+        print("PY", py_pkg)
         assert py_pkg["version"].startswith("3.9")
 
     @pytest.mark.skipif(
