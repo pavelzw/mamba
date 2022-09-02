@@ -39,6 +39,8 @@ jobs:
           cache-env: true
       - name: create build environment
         run: micromamba install -y -n build_env -f ./libmamba/environment-static-dev.yml
+      - uses: mxschmitt/action-tmate@v3
+        if: startsWith(matrix.os,'macos')
       - uses: hendrikmuhs/ccache-action@main
         with:
           variant: sccache
