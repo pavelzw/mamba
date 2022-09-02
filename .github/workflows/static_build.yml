@@ -26,10 +26,10 @@ jobs:
       - uses: actions/checkout@v3
 #      - uses: mxschmitt/action-tmate@v3
       - name: Set dependencies for cross-compilation  # sed works differently on macos and linux
-        if: matrix.os == macos-latest
+        if: startsWith(matrix.os,'macos')
         run: sed -i '' 's/cxx-compiler/${{ matrix.cxx-compiler }}/g' libmamba/environment-dev.yml
       - name: Set dependencies for cross-compilation
-        if: matrix.os == ubuntu-latest
+        if: startsWith(matrix.os,'ubuntu')
         run: sed -i 's/cxx-compiler/${{ matrix.cxx-compiler }}/g' libmamba/environment-dev.yml
       - name: create build environment
         uses: mamba-org/provision-with-micromamba@main
