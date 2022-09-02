@@ -18,10 +18,10 @@ jobs:
     strategy:
       matrix:
         include:
-          - { os: ubuntu-latest, cxx-compiler: cxx-compiler, build_name: linux-64 }
-#          - { os: ubuntu-latest, cxx-compiler: cxx-compiler, build_name: linux-aarch64 }
-          - { os: macos-latest, cxx-compiler: cxx-compiler, build_name: osx-64 }
-          - { os: macos-latest, cxx-compiler: clangxx_osx-arm64, build_name: osx-arm64 }
+          - { os: ubuntu-latest, cxx-compiler: cxx-compiler, build-name: linux-64 }
+#          - { os: ubuntu-latest, cxx-compiler: cxx-compiler, build-name: linux-aarch64 }
+          - { os: macos-latest, cxx-compiler: cxx-compiler, build-name: osx-64 }
+          - { os: macos-latest, cxx-compiler: clangxx_osx-arm64, build-name: osx-arm64 }
     steps:
       - uses: actions/checkout@v3
       - name: Set dependencies for cross-compilation
@@ -63,7 +63,7 @@ jobs:
         run: sccache --show-stats
       - uses: actions/upload-artifact@v3
         with:
-          name: Fully static binary (${{ matrix.os }})
+          name: Fully static binary (${{ matrix.build-name }})
           path: build/micromamba/micromamba
 
   micromamba_full_static_win:
