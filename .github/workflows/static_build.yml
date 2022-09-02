@@ -25,6 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Set dependencies for cross-compilation
+        if: ${{ matrix.os }} = macos-latest
         run: sed -i '' 's/cxx-compiler/${{ matrix.cxx-compiler }}/g' libmamba/environment-static-dev.yml
       - name: create build environment
         uses: mamba-org/provision-with-micromamba@main
