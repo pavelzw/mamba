@@ -1,4 +1,4 @@
-name: Micromamba static builds
+name: Micromamba static builds 2
 
 on:
   push:
@@ -171,7 +171,16 @@ jobs:
 #        if: failure()
         with:
           name: micromamba-conda-build-failed-${{ matrix.platform }}-${{ matrix.arch }}
-          path: artifacts/micromamba
+          path: ${{ env.MAMBA_ROOT_PREFIX }}/envs/mambabuild/conda-bld/micromamba_*
+      - name: Upload conda build artifacts 2
+        uses: actions/upload-artifact@v2
+        if: always()
+        #        if: failure()
+        with:
+          name: micromamba-conda-build-failed2-${{ matrix.platform }}-${{ matrix.arch }}
+          path: ${{ env.MAMBA_ROOT_PREFIX }}/envs/mambabuild/conda-bld/micromamba_*
+        env:
+            MAMBA_ROOT_PREFIX: /Users/runner/micromamba-root
       - uses: actions/upload-artifact@v3
         with:
           name: micromamba-win-64
