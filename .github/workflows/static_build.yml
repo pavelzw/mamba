@@ -76,7 +76,7 @@ jobs:
             ./micromamba
             apt update && apt install -y ca-certificates
             ./micromamba create -p /tmp/testenv --override-channels -c conda-forge --yes python=3.9
-      - uses: mxschmitt/action-tmate
+      - uses: mxschmitt/action-tmate@v3
       - name: Upload conda build artifacts
         uses: actions/upload-artifact@v2
 #        if: failure()
@@ -161,7 +161,7 @@ jobs:
           if %errorlevel% neq 0 exit /b %errorlevel%
           .\micromamba\micromamba.exe --help
           if %errorlevel% neq 0 exit /b %errorlevel%
-      - uses: mxschmitt/action-tmate
+      - uses: mxschmitt/action-tmate@v3
       - name: Upload conda build artifacts
         uses: actions/upload-artifact@v2
 #        if: failure()
