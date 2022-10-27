@@ -78,20 +78,17 @@ jobs:
             ./micromamba create -p /tmp/testenv --override-channels -c conda-forge --yes python=3.9
 #      - uses: mxschmitt/action-tmate@v3
 #        if: always()
+      - name: Archiving conda-build artifact
+        if: always()
+        #        if: failure()
+        run: tar -czvf ${{ github.workspace }}/micromamba-conda-build-failed-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz $MAMBA_ROOT_PREFIX/envs/mambabuild/conda-bld/micromamba_*
       - name: Upload conda build artifacts
         uses: actions/upload-artifact@v3
         if: always()
         #        if: failure()
         with:
           name: micromamba-conda-build-failed-${{ matrix.platform }}-${{ matrix.arch }}
-          path: ${{ env.MAMBA_ROOT_PREFIX }}/envs/mambabuild/conda-bld/micromamba_*
-      - name: Upload conda build artifacts 2
-        uses: actions/upload-artifact@v3
-        if: always()
-        #        if: failure()
-        with:
-          name: micromamba-conda-build-failed2-${{ matrix.platform }}-${{ matrix.arch }}
-          path: ~/micromamba-root/envs/mambabuild/conda-bld/micromamba_*
+          path: ${{ github.workspace }}/micromamba-conda-build-failed-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz
       - name: Upload micromamba
         uses: actions/upload-artifact@v3
         with:
@@ -172,13 +169,17 @@ jobs:
           if %errorlevel% neq 0 exit /b %errorlevel%
 #      - uses: mxschmitt/action-tmate@v3
 #        if: always()
+      - name: Archiving conda-build artifact
+        if: always()
+        #        if: failure()
+        run: tar -czvf ${{ github.workspace }}/micromamba-conda-build-failed-win-64.tar.gz ${{ github.workspace }}/build/
       - name: Upload conda build artifacts
         uses: actions/upload-artifact@v3
         if: always()
 #        if: failure()
         with:
           name: micromamba-conda-build-failed-win-64
-          path: ${{ github.WORKSPACE }}/build/
+          path: ${{ github.workspace }}/micromamba-conda-build-failed-win-64.tar.gz
       - uses: actions/upload-artifact@v3
         with:
           name: micromamba-win-64
