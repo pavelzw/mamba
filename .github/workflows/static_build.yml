@@ -1,4 +1,4 @@
-name: Micromamba static builds 2
+name: Micromamba static builds
 
 on:
   push:
@@ -76,17 +76,24 @@ jobs:
             ./micromamba
             apt update && apt install -y ca-certificates
             ./micromamba create -p /tmp/testenv --override-channels -c conda-forge --yes python=3.9
-      - uses: mxschmitt/action-tmate@v3
-        if: always()
+#      - uses: mxschmitt/action-tmate@v3
+#        if: always()
       - name: Upload conda build artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: always()
-#        if: failure()
+        #        if: failure()
         with:
           name: micromamba-conda-build-failed-${{ matrix.platform }}-${{ matrix.arch }}
-          path: artifacts/micromamba
+          path: ${{ env.MAMBA_ROOT_PREFIX }}/envs/mambabuild/conda-bld/micromamba_*
+      - name: Upload conda build artifacts 2
+        uses: actions/upload-artifact@v3
+        if: always()
+        #        if: failure()
+        with:
+          name: micromamba-conda-build-failed2-${{ matrix.platform }}-${{ matrix.arch }}
+          path: ~/micromamba-root/envs/mambabuild/conda-bld/micromamba_*
       - name: Upload micromamba
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: micromamba-${{ matrix.platform }}-${{ matrix.arch }}
           path: ${{ github.workspace }}/artifacts/micromamba
@@ -163,24 +170,15 @@ jobs:
           if %errorlevel% neq 0 exit /b %errorlevel%
           .\micromamba\micromamba.exe --help
           if %errorlevel% neq 0 exit /b %errorlevel%
-      - uses: mxschmitt/action-tmate@v3
-        if: always()
+#      - uses: mxschmitt/action-tmate@v3
+#        if: always()
       - name: Upload conda build artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: always()
 #        if: failure()
         with:
-          name: micromamba-conda-build-failed-${{ matrix.platform }}-${{ matrix.arch }}
-          path: ${{ env.MAMBA_ROOT_PREFIX }}/envs/mambabuild/conda-bld/micromamba_*
-      - name: Upload conda build artifacts 2
-        uses: actions/upload-artifact@v2
-        if: always()
-        #        if: failure()
-        with:
-          name: micromamba-conda-build-failed2-${{ matrix.platform }}-${{ matrix.arch }}
-          path: ${{ env.MAMBA_ROOT_PREFIX }}/envs/mambabuild/conda-bld/micromamba_*
-        env:
-            MAMBA_ROOT_PREFIX: /Users/runner/micromamba-root
+          name: micromamba-conda-build-failed-win-64
+          path: ${{ github.WORKSPACE }}/build/
       - uses: actions/upload-artifact@v3
         with:
           name: micromamba-win-64
