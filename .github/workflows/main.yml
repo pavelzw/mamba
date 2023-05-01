@@ -27,7 +27,6 @@ jobs:
           environment-name: build_env
           # cache-environment: true
       - uses: hendrikmuhs/ccache-action@main
-        if: false
         with:
           variant: sccache
           key: ${{ github.job }}-${{ matrix.os }}
