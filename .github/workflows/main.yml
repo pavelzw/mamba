@@ -492,7 +492,7 @@ jobs:
           environment-file: ./micromamba/environment-dev.yml
           environment-name: build_env
           cache-environment: true
-          init-shell: cmd.eexe
+          init-shell: cmd.exe
       - uses: hendrikmuhs/ccache-action@main
         with:
           variant: sccache
