@@ -331,7 +331,8 @@ jobs:
       - name: Cleanup
         if: always()
         # Do not cache temporary envs with 'cache-environment: true'
-        run: rm -rf ~/micromamba*/envs/*/envs
+        run: rm -rf ~/micromamba*/envs/*/envs]
+        shell: bash
 
   mamba_python_tests_win:
     needs: [libmamba_static_win]
