@@ -59,7 +59,6 @@ jobs:
           ninja install
       - name: install libmambapy
         run: pip install -e ./libmambapy/ --no-deps
-        working-directory: mamba
       - name: build cache statistics
         run: sccache --show-stats
       - name: install mamba
