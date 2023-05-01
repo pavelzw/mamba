@@ -283,7 +283,9 @@ jobs:
           f.write_text(text)
       - name: build static windows dependencies with vcpkg
         shell: cmd /C CALL {0}
-        run: |
+        run: | # for some reason we need to explicitly activate the environment
+          micromamba activate build_env
+          if %errorlevel% neq 0 exit /b %errorlevel%
           mkdir build
           if %errorlevel% neq 0 exit /b %errorlevel%
           cd build
@@ -311,7 +313,9 @@ jobs:
           key: ${{ github.job }}-${{ matrix.os }}
       - name: build libmamba-static
         shell: cmd /C call {0}
-        run: |
+        run: | # for some reason we need to explicitly activate the environment
+          micromamba activate build_env
+          if %errorlevel% neq 0 exit /b %errorlevel%
           cd build
           if %errorlevel% neq 0 exit /b %errorlevel%
           cmake .. -DCMAKE_INSTALL_PREFIX=%CONDA_PREFIX%\Library ^
