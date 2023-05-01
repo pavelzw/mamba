@@ -31,8 +31,9 @@ jobs:
           variant: sccache
           key: ${{ github.job }}-${{ matrix.os }}
       - name: build libmamba-static
-        shell: micromamba-shell {0}
+        shell: bash -l {0}
         run: |
+          micromamba activate build_env
           mkdir build
           cd build
           cmake .. -DBUILD_LIBMAMBA=ON \
@@ -69,8 +70,9 @@ jobs:
           key: ${{ github.job }}-${{ matrix.os }}
           restore-keys: libmamba_static-${{ matrix.os }}
       - uses: mxschmitt/action-tmate@v3 # make micromamba-shell use bash
+        if: false
       - name: build and run libmamba C++ tests
-        shell: micromamba-shell {0}
+        shell: bash -l {0}
         run: | # TODO: use micromamba-shell {0}
           micromamba activate build_env
           mkdir build
@@ -111,8 +113,9 @@ jobs:
           key: ${{ github.job }}-${{ matrix.os }}
           restore-keys: libmamba_static-${{ matrix.os }}
       - name: build micromamba
-        shell: micromamba-shell {0}
+        shell: bash -l {0}
         run: |
+          micromamba activate build_env
           mkdir build
           cd build
           cmake .. -DBUILD_MICROMAMBA=ON \
@@ -133,9 +136,10 @@ jobs:
         if: matrix.os == 'macos-latest'
         run: brew install fish xonsh
       - name: micromamba python based tests
-        shell: micromamba-shell {0}
+        shell: bash -l {0}
         run: |
           export TEST_MAMBA_EXE=$(pwd)/build/micromamba/micromamba
+          micromamba activate build_env
           pytest -v --capture=tee-sys micromamba/tests/
       - name: Cleanup
         shell: bash
@@ -167,9 +171,13 @@ jobs:
           variant: sccache
           key: ${{ github.job }}-${{ matrix.os }}
           restore-keys: libmamba_static-${{ matrix.os }}
+      - name: run conda init
+        shell: bash -l {0}
+        run: conda init
       - name: build libmamba Python bindings
-        shell: micromamba-shell {0}
+        shell: bash -l {0}
         run: |
+          micromamba activate build_env
           mkdir build
           cd build
           cmake .. -DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX \
@@ -183,24 +191,31 @@ jobs:
           ninja
           ninja install
       - name: install libmambapy
-        shell: micromamba-shell {0}
-        run: pip install -e ./libmambapy/ --no-deps
+        shell: bash -l {0}
+        run: |
+          micromamba activate build_env
+          pip install -e ./libmambapy/ --no-deps
       - name: check libmambapy stubs
-        shell: micromamba-shell {0}
+        shell: bash -l {0}
         run: |
           pybind11-stubgen libmambapy.bindings
           python compare_stubs.py libmambapy/libmambapy/__init__.pyi stubs/libmambapy/bindings-stubs/__init__.pyi
       - name: build cache statistics
         run: sccache --show-stats
       - name: install mamba
-        shell: micromamba-shell {0}
-        run: pip install ./mamba[test] --no-deps
-      - name: run mamba tests suite
-        shell: micromamba-shell {0}
-        run: pytest -v --capture=tee-sys mamba/tests
-      - name: run mamba create/update tests
-        shell: micromamba-shell {0}
+        shell: bash -l {0}
         run: |
+          micromamba activate build_env
+          pip install ./mamba[test] --no-deps
+      - name: run mamba tests suite
+        shell: bash -l {0}
+        run: |
+          micromamba activate build_env  
+          pytest -v --capture=tee-sys mamba/tests
+      - name: run mamba create/update tests
+        shell: bash -l {0}
+        run: |
+          micromamba activate build_env
           mamba create -n test_env xtensor -c conda-forge -y
           mamba env create -f mamba/tests/test_env.yml
           mamba env update -f mamba/tests/update_env.yml
@@ -226,8 +241,9 @@ jobs:
             exit 1
           fi
       - name: Run server auth tests
-        shell: micromamba-shell {0}
+        shell: bash -l {0}
         run: |
+          micromamba activate build_env
           cd mamba/tests
 
           if [[ "$(uname -s)" == "Linux" ]]; then
@@ -238,7 +254,7 @@ jobs:
 
           ./testserver.sh
       - name: Shell init
-        shell: micromamba-shell {0}
+        shell: bash -el {0}
         run: mamba init
 
       - name: Cleanup
