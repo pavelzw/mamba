@@ -224,7 +224,7 @@ jobs:
             exit 1
           fi
       - name: Run server auth tests
-        shell: bash -euox -l {0} pipefail
+        shell: micromamba-shell {0}
         run: |
           cd mamba/tests
 
