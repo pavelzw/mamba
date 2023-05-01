@@ -68,9 +68,11 @@ jobs:
           variant: sccache
           key: ${{ github.job }}-${{ matrix.os }}
           restore-keys: libmamba_static-${{ matrix.os }}
+      - uses: mxschmitt/action-tmate@v3 # make micromamba-shell use bash
       - name: build and run libmamba C++ tests
         shell: micromamba-shell {0}
-        run: |
+        run: | # TODO: use micromamba-shell {0}
+          micromamba activate build_env
           mkdir build
           cd build
           cmake .. -DBUILD_LIBMAMBA=ON \
