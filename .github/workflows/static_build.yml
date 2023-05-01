@@ -14,7 +14,6 @@ concurrency:
 
 jobs:
   conda-build:
-    if: false
     name: micromamba - ${{ matrix.platform }}-${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -130,7 +129,7 @@ jobs:
           f.write_text(text)
       - name: build static windows dependencies with vcpkg
         shell: cmd /C CALL {0}
-        run: |
+        run: | # for some reason we need to explicitly activate the environment
           micromamba activate build_env
           if %errorlevel% neq 0 exit /b %errorlevel%
           mkdir build
@@ -154,16 +153,13 @@ jobs:
           if %errorlevel% neq 0 exit /b %errorlevel%
           set CMAKE_PREFIX_PATH=%VCPKG_ROOT%\installed\x64-windows-static\;%CMAKE_PREFIX_PATH%
           if %errorlevel% neq 0 exit /b %errorlevel%
-      - uses: mxschmitt/action-tmate@v3
-        if: false
-        # if: failure()
       - uses: hendrikmuhs/ccache-action@main
         with:
           variant: sccache
           key: ${{ github.job }}-windows-2019
       - name: build micromamba
         shell: cmd /C CALL {0}
-        run: |
+        run: | # for some reason we need to explicitly activate the environment
           micromamba activate build_env
           if %errorlevel% neq 0 exit /b %errorlevel%
           cd build
