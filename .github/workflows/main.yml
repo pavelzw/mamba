@@ -216,7 +216,7 @@ jobs:
           fi
           conda index $CONDA_PREFIX/conda-bld
 
-          ./mamba create -n l_o_cal_test xtensor -c local -c conda-forge -y
+          mamba create -n l_o_cal_test xtensor -c local -c conda-forge -y
 
           conda list -n l_o_cal_test
           conda list -n l_o_cal_test | tail -n +3 > list.txt
@@ -237,7 +237,7 @@ jobs:
           ./testserver.sh
       - name: Shell init
         shell: micromamba-shell {0}
-        run: ./mamba init
+        run: mamba init
 
       - name: Cleanup
         if: always()
@@ -414,7 +414,7 @@ jobs:
           curl https://anaconda.org/conda-forge/xtl/0.6.21/download/win-64/xtl-0.6.21-h5362a0b_0.tar.bz2 -L -o $CONDA_PREFIX/conda-bld/win-64/xtl-0.6.21-h5362a0b_0.tar.bz2
           conda index $CONDA_PREFIX/conda-bld
 
-          ./mamba create -n l_o_cal_test xtensor -c local -c conda-forge -y
+          mamba create -n l_o_cal_test xtensor -c local -c conda-forge -y
 
           micromamba list -n l_o_cal_test
           # cut first couple of lines to remove prefix path
