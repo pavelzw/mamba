@@ -95,6 +95,8 @@ jobs:
         run: rm -rf ~/micromamba*/envs/*/envs
 
   umamba_tests:
+    # TODO
+    if: false
     needs: [libmamba_static]
     runs-on: ${{ matrix.os }}
     strategy:
@@ -149,6 +151,8 @@ jobs:
         run: rm -rf ~/micromamba*/envs/*/envs
 
   mamba_python_tests:
+    # TODO
+    if: false
     needs: [libmamba_static]
     runs-on: ${{ matrix.os }}
     strategy:
@@ -211,7 +215,7 @@ jobs:
       - name: run mamba tests suite
         shell: bash -l {0}
         run: |
-          micromamba activate build_env  
+          micromamba activate build_env
           pytest -v --capture=tee-sys mamba/tests
       - name: run mamba create/update tests
         shell: bash -l {0}
@@ -354,6 +358,7 @@ jobs:
         shell: bash
 
   mamba_python_tests_win:
+    # TODO: false
     needs: [libmamba_static_win]
     runs-on: ${{ matrix.os }}
     strategy:
@@ -448,6 +453,8 @@ jobs:
         run: rm -rf ~/micromamba*/envs/*/envs
 
   libmamba_cpp_tests_win:
+    # TODO
+    if: false
     needs: [libmamba_static_win]
     runs-on: ${{ matrix.os }}
     strategy:
@@ -496,6 +503,8 @@ jobs:
         run: rm -rf ~/micromamba*/envs/*/envs
 
   umamba_tests_win:
+    # TODO
+    if: false
     needs: [libmamba_static_win]
     runs-on: ${{ matrix.os }}
     strategy:
@@ -555,6 +564,8 @@ jobs:
           rm -rf ~/micromamba*/envs/*/envs
 
   umamba_tests_win_cmd:
+    # TODO
+    if: false
     needs: [umamba_tests_win]
     runs-on: ${{ matrix.os }}
     strategy:

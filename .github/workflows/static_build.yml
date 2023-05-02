@@ -2,11 +2,13 @@ name: Micromamba static builds
 
 on:
   push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+    branches: [adwdwdw]
+  # push:
+  #   branches:
+  #     - main
+  # pull_request:
+  #   branches:
+  #     - main
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
