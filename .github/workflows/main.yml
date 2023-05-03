@@ -90,6 +90,7 @@ jobs:
           ninja testing_libmamba_lock
           ninja test
         env:
+          # The CONDARC environment variable breaks some tests
           CONDARC: ''
       - name: build cache statistics
         run: sccache --show-stats
@@ -99,7 +100,7 @@ jobs:
         # Do not cache temporary envs with 'cache-environment: true'
         run: rm -rf ~/micromamba*/envs/*/envs
 
-  umamba_tests:
+  umamba_tests: # WORKING
     needs: [libmamba_static]
     runs-on: ${{ matrix.os }}
     strategy:
@@ -107,6 +108,12 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v3
+      # - name: create build environment
+      #   uses: mamba-org/provision-with-micromamba@main
+      #   with:
+      #     environment-file: ./micromamba/environment-dev.yml
+      #     environment-name: build_env
+      #     cache-env: true
       - name: create build environment
         uses: mamba-org/setup-micromamba@v1
         with:
@@ -142,13 +149,13 @@ jobs:
         if: matrix.os == 'macos-latest'
         run: brew install fish xonsh
       - name: micromamba python based tests
-        shell: bash -l {0}
+        shell: bash -l -eo pipefail {0}
         run: |
           export TEST_MAMBA_EXE=$(pwd)/build/micromamba/micromamba
           micromamba activate build_env
           pytest -v --capture=tee-sys micromamba/tests/
-        # env:
-        #   CONDARC: ''
+        env:
+          CONDARC: ''
       - name: Cleanup
         shell: bash
         if: always()
