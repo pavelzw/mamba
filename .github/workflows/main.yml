@@ -59,18 +59,18 @@ jobs:
         os: [ubuntu-latest, macos-latest]
     steps:
       - uses: actions/checkout@v3
-      # - name: create build environment
-      #   uses: mamba-org/provision-with-micromamba@main
-      #   with:
-      #     environment-file: ./libmamba/environment-dev.yml
-      #     environment-name: build_env
-      #     cache-env: true
       - name: create build environment
-        uses: mamba-org/setup-micromamba@v1
+        uses: mamba-org/provision-with-micromamba@main
         with:
           environment-file: ./libmamba/environment-dev.yml
           environment-name: build_env
-          cache-environment: true
+          # cache-env: true
+      # - name: create build environment
+      #   uses: mamba-org/setup-micromamba@v1
+      #   with:
+      #     environment-file: ./libmamba/environment-dev.yml
+      #     environment-name: build_env
+      #     # cache-environment: true
       - uses: hendrikmuhs/ccache-action@main
         with:
           variant: sccache
