@@ -93,6 +93,8 @@ jobs:
                    -GNinja
           ninja testing_libmamba_lock
           ninja test
+        env:
+          CONDARC: ''
       - name: build cache statistics
         run: sccache --show-stats
       - name: Cleanup
