@@ -435,7 +435,7 @@ jobs:
       - name: install libmambapy
         shell: cmd /C call {0}
         run: |
-          micromamba activate build_env
+          call micromamba activate build_env
           pip install -e .\libmambapy\ --no-deps
       - name: build cache statistics
         run: sccache --show-stats
@@ -509,7 +509,7 @@ jobs:
       - name: build and run libmamba C++ tests
         shell: cmd /C call {0}
         run: |
-          micromamba activate build_env
+          call micromamba activate build_env
           if %errorlevel% neq 0 exit /b %errorlevel%
           mkdir build
           if %errorlevel% neq 0 exit /b %errorlevel%
@@ -561,7 +561,7 @@ jobs:
       - name: build micromamba
         shell: cmd /C call {0}
         run: |
-          micromamba activate build_env
+          call micromamba activate build_env
           if %errorlevel% neq 0 exit /b %errorlevel%
           mkdir build
           if %errorlevel% neq 0 exit /b %errorlevel%
@@ -579,7 +579,7 @@ jobs:
       - name: check that micromamba runs
         shell: cmd /C call {0}
         run: |
-          micromamba activate build_env  
+          call micromamba activate build_env  
           .\build\micromamba\micromamba.exe --help
       - name: build cache statistics
         run: sccache --show-stats
