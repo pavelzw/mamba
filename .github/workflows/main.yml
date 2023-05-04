@@ -520,7 +520,7 @@ jobs:
         # Do not cache temporary envs with 'cache-environment: true'
         run: rm -rf ~/micromamba*/envs/*/envs
 
-  umamba_tests_win:
+  umamba_tests_win: # WORKING
     # TODO
     # if: false
     needs: [libmamba_static_win]
@@ -583,7 +583,7 @@ jobs:
 
   umamba_tests_win_cmd:
     # TODO
-    if: false
+    # if: false
     needs: [umamba_tests_win]
     runs-on: ${{ matrix.os }}
     strategy:
