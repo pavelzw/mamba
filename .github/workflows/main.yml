@@ -157,6 +157,8 @@ jobs:
           micromamba activate build_env
           pytest -v --capture=tee-sys micromamba/tests/
         env:
+          # unsetting environment variables doesn't work right now -> empty string
+          # https://github.com/actions/runner/issues/1126
           CONDARC: ''
       - name: Cleanup
         shell: bash
@@ -165,6 +167,8 @@ jobs:
         run: rm -rf ~/micromamba*/envs/*/envs
 
   mamba_python_tests:
+    env:
+      CONDARC: ''
     # TODO
     # if: false
     needs: [libmamba_static]
@@ -231,6 +235,8 @@ jobs:
         run: |
           micromamba activate build_env
           pytest -v --capture=tee-sys mamba/tests
+        # env:
+        #   CONDARC: ''
       - name: run mamba create/update tests
         shell: bash -l {0}
         run: |
@@ -238,6 +244,8 @@ jobs:
           mamba create -n test_env xtensor -c conda-forge -y
           mamba env create -f mamba/tests/test_env.yml
           mamba env update -f mamba/tests/update_env.yml
+        # env:
+        #   CONDARC: ''
       - name: run mamba local channel test
         shell: bash -el {0}
         run: |
@@ -259,6 +267,8 @@ jobs:
           if [ "$(grep -c "local" list.txt)" -ne 2 ]; then
             exit 1
           fi
+        # env:
+        #   CONDARC: ''
       - name: Run server auth tests
         shell: bash -l {0}
         run: |
@@ -272,6 +282,8 @@ jobs:
           pip install git+https://github.com/conda/conda-content-trust.git@main
 
           ./testserver.sh
+        # env:
+        #   CONDARC: ''
       - name: Shell init
         shell: bash -el {0}
         run: mamba init
