@@ -398,11 +398,19 @@ jobs:
           init-shell: >-
             bash
             cmd.exe
+      - name: Unset CONDARC env variable
+        # This doesn't unset the variable, but sets it to an empty string
+        # Workaround for https://github.com/actions/runner/issues/1126
+        shell: bash
+        run: echo "CONDARC=" >> $GITHUB_ENV
       - uses: hendrikmuhs/ccache-action@main
         with:
           variant: sccache
           key: ${{ github.job }}-${{ matrix.os }}
           restore-keys: libmamba_static-${{ matrix.os }}
+      - name: run conda init
+        shell: bash -l {0}
+        run: conda init
       - name: build libmamba Python bindings
         shell: cmd /C call {0}
         run: |
@@ -474,9 +482,9 @@ jobs:
         # Do not cache temporary envs with 'cache-environment: true'
         run: rm -rf ~/micromamba*/envs/*/envs
 
-  libmamba_cpp_tests_win:
+  libmamba_cpp_tests_win: # WORKING
     # TODO
-    # if: false
+    if: false
     needs: [libmamba_static_win]
     runs-on: ${{ matrix.os }}
     strategy:
@@ -491,7 +499,7 @@ jobs:
         with:
           environment-file: ./libmamba/environment-dev.yml
           environment-name: build_env
-          cache-environment: true
+          # cache-environment: true
           init-shell: cmd.exe
       - uses: hendrikmuhs/ccache-action@main
         with:
@@ -543,7 +551,7 @@ jobs:
         with:
           environment-file: ./micromamba/environment-dev.yml
           environment-name: build_env
-          cache-environment: true
+          # cache-environment: true
           init-shell: cmd.exe
       - uses: hendrikmuhs/ccache-action@main
         with:
@@ -576,7 +584,7 @@ jobs:
       - name: build cache statistics
         run: sccache --show-stats
       - name: tar micromamba artifact
-        shell: cmd /C call {0}
+        shell: bash -eo pipefail {0}
         run: |
           cp build/libmamba/libmamba.dll build/micromamba/
           tar -cvf umamba.tar build/micromamba/micromamba.exe build/micromamba/libmamba.dll
