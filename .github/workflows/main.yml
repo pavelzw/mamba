@@ -167,8 +167,6 @@ jobs:
         run: rm -rf ~/micromamba*/envs/*/envs
 
   mamba_python_tests:
-    env:
-      CONDARC: ''
     # TODO
     # if: false
     needs: [libmamba_static]
@@ -189,6 +187,8 @@ jobs:
           create-args: >-
             conda-build
             python=${{ matrix.python_version }}
+      - name: Overwrite CONDARC env variable
+        run: echo "CONDARC=" >> $GITHUB_ENV
       - uses: hendrikmuhs/ccache-action@main
         with:
           variant: sccache
