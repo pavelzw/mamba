@@ -53,7 +53,7 @@ jobs:
 
   libmamba_cpp_tests: # WORKING
     # TODO remove
-    if: false
+    # if: false
     needs: [libmamba_static]
     runs-on: ${{ matrix.os }}
     strategy:
@@ -67,18 +67,19 @@ jobs:
           environment-file: ./libmamba/environment-dev.yml
           environment-name: build_env
           cache-environment: true
+      - name: Unset CONDARC env variable
+        # This doesn't unset the variable, but sets it to an empty string
+        # Workaround for https://github.com/actions/runner/issues/1126
+        run: echo "CONDARC=" >> $GITHUB_ENV
       - uses: hendrikmuhs/ccache-action@main
         with:
           variant: sccache
           key: ${{ github.job }}-${{ matrix.os }}
           restore-keys: |
             libmamba_static-${{ matrix.os }}
-      - uses: mxschmitt/action-tmate@v3 # make micromamba-shell use bash
-        if: false
       - name: build and run libmamba C++ tests
-        shell: bash -l {0}
-        run: | # TODO: use micromamba-shell {0}
-          micromamba activate build_env
+        shell: micromamba-shell {0}
+        run: |
           mkdir build
           cd build
           cmake .. -DBUILD_LIBMAMBA=ON \
@@ -89,9 +90,6 @@ jobs:
                    -GNinja
           ninja testing_libmamba_lock
           ninja test
-        env:
-          # The CONDARC environment variable breaks some tests
-          CONDARC: ''
       - name: build cache statistics
         run: sccache --show-stats
       - name: Cleanup
@@ -166,9 +164,9 @@ jobs:
         # Do not cache temporary envs with 'cache-environment: true'
         run: rm -rf ~/micromamba*/envs/*/envs
 
-  mamba_python_tests:
+  mamba_python_tests: # WORKING
     # TODO
-    # if: false
+    if: false
     needs: [libmamba_static]
     runs-on: ${{ matrix.os }}
     strategy:
@@ -187,7 +185,9 @@ jobs:
           create-args: >-
             conda-build
             python=${{ matrix.python_version }}
-      - name: Overwrite CONDARC env variable
+      - name: Unset CONDARC env variable
+        # This doesn't unset the variable, but sets it to an empty string
+        # Workaround for https://github.com/actions/runner/issues/1126
         run: echo "CONDARC=" >> $GITHUB_ENV
       - uses: hendrikmuhs/ccache-action@main
         with:
@@ -235,8 +235,6 @@ jobs:
         run: |
           micromamba activate build_env
           pytest -v --capture=tee-sys mamba/tests
-        # env:
-        #   CONDARC: ''
       - name: run mamba create/update tests
         shell: bash -l {0}
         run: |
@@ -244,8 +242,6 @@ jobs:
           mamba create -n test_env xtensor -c conda-forge -y
           mamba env create -f mamba/tests/test_env.yml
           mamba env update -f mamba/tests/update_env.yml
-        # env:
-        #   CONDARC: ''
       - name: run mamba local channel test
         shell: bash -el {0}
         run: |
@@ -267,8 +263,6 @@ jobs:
           if [ "$(grep -c "local" list.txt)" -ne 2 ]; then
             exit 1
           fi
-        # env:
-        #   CONDARC: ''
       - name: Run server auth tests
         shell: bash -l {0}
         run: |
@@ -282,18 +276,15 @@ jobs:
           pip install git+https://github.com/conda/conda-content-trust.git@main
 
           ./testserver.sh
-        # env:
-        #   CONDARC: ''
       - name: Shell init
         shell: bash -el {0}
         run: mamba init
-
       - name: Cleanup
         if: always()
         # Do not cache temporary envs with 'cache-environment: true'
         run: rm -rf ~/micromamba*/envs/*/envs
 
-  libmamba_static_win:
+  libmamba_static_win: # WORKING
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -531,7 +522,7 @@ jobs:
 
   umamba_tests_win:
     # TODO
-    if: false
+    # if: false
     needs: [libmamba_static_win]
     runs-on: ${{ matrix.os }}
     strategy:
