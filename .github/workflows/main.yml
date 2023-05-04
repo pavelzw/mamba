@@ -14,6 +14,8 @@ concurrency:
 
 jobs:
   libmamba_static: # WORKING
+    # TODO
+    if: false
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -324,7 +326,7 @@ jobs:
       - name: build static windows dependencies with vcpkg
         shell: cmd /C CALL {0}
         run: | # for some reason we need to explicitly activate the environment
-          micromamba activate build_env
+          call micromamba activate build_env
           if %errorlevel% neq 0 exit /b %errorlevel%
           mkdir build
           if %errorlevel% neq 0 exit /b %errorlevel%
@@ -353,8 +355,8 @@ jobs:
           key: ${{ github.job }}-${{ matrix.os }}
       - name: build libmamba-static
         shell: cmd /C call {0}
-        run: | # for some reason we need to explicitly activate the environment
-          micromamba activate build_env
+        run: |
+          call micromamba activate build_env
           if %errorlevel% neq 0 exit /b %errorlevel%
           cd build
           if %errorlevel% neq 0 exit /b %errorlevel%
@@ -377,7 +379,7 @@ jobs:
   mamba_python_tests_win:
     # TODO
     # if: false
-    needs: [libmamba_static_win]
+    # needs: [libmamba_static_win]
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -414,7 +416,7 @@ jobs:
       - name: build libmamba Python bindings
         shell: cmd /C call {0}
         run: |
-          micromamba activate build_env
+          call micromamba activate build_env
           if %errorlevel% neq 0 exit /b %errorlevel%
           mkdir build
           if %errorlevel% neq 0 exit /b %errorlevel%
@@ -440,9 +442,9 @@ jobs:
       - name: build cache statistics
         run: sccache --show-stats
       - name: install mamba
-        shell: bash -el {0}
+        shell: cmd /C call {0}
         run: |
-          python --version
+          call micromamba activate build_env
           pip install ./mamba[test] --no-deps
       - name: run mamba tests suite
         shell: bash -el {0}
@@ -485,7 +487,7 @@ jobs:
   libmamba_cpp_tests_win: # WORKING
     # TODO
     if: false
-    needs: [libmamba_static_win]
+    # needs: [libmamba_static_win]
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -537,7 +539,7 @@ jobs:
   umamba_tests_win: # WORKING
     # TODO
     # if: false
-    needs: [libmamba_static_win]
+    # needs: [libmamba_static_win]
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
