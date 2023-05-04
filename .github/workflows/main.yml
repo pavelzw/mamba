@@ -426,7 +426,9 @@ jobs:
           ninja install
       - name: install libmambapy
         shell: cmd /C call {0}
-        run: pip install -e .\libmambapy\ --no-deps
+        run: |
+          micromamba activate build_env
+          pip install -e .\libmambapy\ --no-deps
       - name: build cache statistics
         run: sccache --show-stats
       - name: install mamba
@@ -460,9 +462,9 @@ jobs:
 
           mamba create -n l_o_cal_test xtensor -c local -c conda-forge -y
 
-          micromamba list -n l_o_cal_test
+          conda list -n l_o_cal_test
           # cut first couple of lines to remove prefix path
-          micromamba list -n l_o_cal_test | tail -n +3 > list.txt
+          conda list -n l_o_cal_test | tail -n +3 > list.txt
           if [ "$(grep -c "local" list.txt)" -ne 2 ]; then
             exit 1
           fi
@@ -551,6 +553,8 @@ jobs:
       - name: build micromamba
         shell: cmd /C call {0}
         run: |
+          micromamba activate build_env
+          if %errorlevel% neq 0 exit /b %errorlevel%
           mkdir build
           if %errorlevel% neq 0 exit /b %errorlevel%
           cd build
@@ -566,7 +570,9 @@ jobs:
           ninja install
       - name: check that micromamba runs
         shell: cmd /C call {0}
-        run: .\build\micromamba\micromamba.exe --help
+        run: |
+          micromamba activate build_env  
+          .\build\micromamba\micromamba.exe --help
       - name: build cache statistics
         run: sccache --show-stats
       - name: tar micromamba artifact
