@@ -166,6 +166,8 @@ jobs:
               -D BUILD_LIBMAMBA=ON ^
               -D BUILD_STATIC=ON ^
               -D BUILD_MICROMAMBA=ON ^
+              -D LIBMAMBA_VERSION_COMMENT=${{ github.sha }}
+              -D UMAMBA_VERSION_COMMENT=${{ github.sha }}
               -G "Ninja"
           if %errorlevel% neq 0 exit /b %errorlevel%
           ninja install
