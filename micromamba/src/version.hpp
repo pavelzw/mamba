@@ -26,7 +26,8 @@
     (UMAMBA_VERSION_MAJOR * 10000 + UMAMBA_VERSION_MINOR * 100 + UMAMBA_VERSION_PATCH)
 #define UMAMBA_VERSION_STRING                                                                      \
     __UMAMBA_STRINGIZE(UMAMBA_VERSION_MAJOR)                                                       \
-    "." __UMAMBA_STRINGIZE(UMAMBA_VERSION_MINOR) "." __UMAMBA_STRINGIZE(UMAMBA_VERSION_PATCH)
+    "." __UMAMBA_STRINGIZE(UMAMBA_VERSION_MINOR) "." __UMAMBA_STRINGIZE(UMAMBA_VERSION_PATCH       \
+    ) " (" __UMAMBA_STRINGIZE(UMAMBA_VERSION_COMMENT) ")"
 
 namespace umamba
 {

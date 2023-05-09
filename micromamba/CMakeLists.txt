@@ -11,6 +11,9 @@ project(micromamba)
 
 # Build options
 # =============
+
+add_definitions("-DUMAMBA_VERSION_COMMENT=unknown sha")
+
 option(BUILD_MICROMAMBA_SERVER "Build the micromamba server" OFF)
 
 if (BUILD_STATIC AND NOT BUILD_SHARED)
