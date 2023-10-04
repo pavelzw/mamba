@@ -49,7 +49,7 @@ jobs:
         with:
           environment-name: mambabuild
           create-args: python boa
-          post-cleanup: none  # FIXME the cleanup fails on OSX
+          # post-cleanup: none  # FIXME the cleanup fails on OSX
       - name: Build conda package (Unix native)
         if: ${{ !(matrix.platform == 'linux' && matrix.arch != '64') }}
         shell: bash -l {0}
