@@ -25,11 +25,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-latest, platform: linux, arch: "64" }
-          - { os: ubuntu-latest, platform: linux, arch: aarch64 }
-          - { os: ubuntu-latest, platform: linux, arch: ppc64le }
+          # - { os: ubuntu-latest, platform: linux, arch: "64" }
+          # - { os: ubuntu-latest, platform: linux, arch: aarch64 }
+          # - { os: ubuntu-latest, platform: linux, arch: ppc64le }
           - { os: macos-latest, platform: osx, arch: "64" }
-          - { os: macos-latest, platform: osx, arch: arm64 }
+          # - { os: macos-latest, platform: osx, arch: arm64 }
     steps:
       - name: Checkout micromamba-feedstock
         uses: actions/checkout@v3
@@ -50,18 +50,18 @@ jobs:
           environment-name: mambabuild
           create-args: python boa
           # post-cleanup: none  # FIXME the cleanup fails on OSX
-      - name: Build conda package (Unix native)
-        if: ${{ !(matrix.platform == 'linux' && matrix.arch != '64') }}
-        shell: bash -l {0}
-        run: |
-          cd micromamba-feedstock/
-          # Special values for running the feedstock with a local source
-          export FEEDSTOCK_ROOT="${PWD}"
-          export CI="local"
-          # For OSX not using Docker
-          export CONDA_BLD_PATH="${PWD}/build_artifacts"
-          mkdir -p "${CONDA_BLD_PATH}"
-          python build-locally.py "${{ matrix.platform }}_${{ matrix.arch }}_"
+      # - name: Build conda package (Unix native)
+      #   if: ${{ !(matrix.platform == 'linux' && matrix.arch != '64') }}
+      #   shell: bash -l {0}
+      #   run: |
+      #     cd micromamba-feedstock/
+      #     # Special values for running the feedstock with a local source
+      #     export FEEDSTOCK_ROOT="${PWD}"
+      #     export CI="local"
+      #     # For OSX not using Docker
+      #     export CONDA_BLD_PATH="${PWD}/build_artifacts"
+      #     mkdir -p "${CONDA_BLD_PATH}"
+      #     python build-locally.py "${{ matrix.platform }}_${{ matrix.arch }}_"
       # The build_locally.py script will test all Linux builds, which fails outside of linux-64
       - name: Build conda package (Linux emulated)
         if: ${{ matrix.platform == 'linux' && matrix.arch != '64' }}

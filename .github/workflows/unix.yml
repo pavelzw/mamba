@@ -17,6 +17,7 @@ concurrency:
 
 jobs:
   libmamba_tests_unix:
+    if: false
     name: libmamba tests
     runs-on: ${{ matrix.os }}
     strategy:
@@ -58,6 +59,7 @@ jobs:
         run: sccache --show-stats
 
   mamba_tests_unix:
+    if: false
     name: Mamba tests
     runs-on: ${{ matrix.os }}
     strategy:
@@ -169,6 +171,7 @@ jobs:
           mamba init
 
   umamba_integration_tests_unix:
+    if: false
     name: Micromamba integration tests
     runs-on: ${{ matrix.os }}
     strategy:

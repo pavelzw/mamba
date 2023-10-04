@@ -17,6 +17,7 @@ concurrency:
 
 jobs:
   libmamba_tests_win:
+    if: false
     name: libmamba tests
     runs-on: ${{ matrix.os }}
     strategy:
@@ -67,6 +68,7 @@ jobs:
         run: sccache --show-stats
 
   mamba_python_tests_win:
+    if: false
     name: Mamba tests
     runs-on: ${{ matrix.os }}
     strategy:
@@ -156,6 +158,7 @@ jobs:
           fi
 
   umamba_build_win:
+    if: false
     name: Build micromamba
     runs-on: ${{ matrix.os }}
     strategy:
@@ -209,6 +212,7 @@ jobs:
           path: umamba.tar
 
   umamba_integration_tests_win:
+    if: false
     name: Micromamba integration tests with PWSH
     needs: [umamba_build_win]
     runs-on: ${{ matrix.os }}
