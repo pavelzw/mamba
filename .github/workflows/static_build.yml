@@ -50,46 +50,49 @@ jobs:
           environment-name: mambabuild
           create-args: python boa
           # post-cleanup: none  # FIXME the cleanup fails on OSX
-      # - name: Build conda package (Unix native)
-      #   if: ${{ !(matrix.platform == 'linux' && matrix.arch != '64') }}
-      #   shell: bash -l {0}
-      #   run: |
-      #     cd micromamba-feedstock/
-      #     # Special values for running the feedstock with a local source
-      #     export FEEDSTOCK_ROOT="${PWD}"
-      #     export CI="local"
-      #     # For OSX not using Docker
-      #     export CONDA_BLD_PATH="${PWD}/build_artifacts"
-      #     mkdir -p "${CONDA_BLD_PATH}"
-      #     python build-locally.py "${{ matrix.platform }}_${{ matrix.arch }}_"
-      # The build_locally.py script will test all Linux builds, which fails outside of linux-64
-      - name: Build conda package (Linux emulated)
-        if: ${{ matrix.platform == 'linux' && matrix.arch != '64' }}
-        uses: uraimo/run-on-arch-action@v2
-        with:
-          arch: ${{ matrix.arch }}
-          distro: ubuntu_latest
-          dockerRunArgs: -v /var/run/docker.sock:/var/run/docker.sock
-          install: |
-            apt-get update -y
-            apt-get install -y python3 docker.io
-          run: |
-            cd micromamba-feedstock/
-            # Special values for running the feedstock with a local source
-            export FEEDSTOCK_ROOT="${PWD}"
-            export CI="local"
-            python3 build-locally.py "${{ matrix.platform }}_${{ matrix.arch }}_"
-      - name: Unpack micromamba package
+      - name: Build conda package (Unix native)
+        if: ${{ !(matrix.platform == 'linux' && matrix.arch != '64') }}
         shell: bash -l {0}
         run: |
-          ls micromamba-feedstock/build_artifacts
-          micromamba package extract \
-            "micromamba-feedstock/build_artifacts/${{ matrix.platform }}-${{ matrix.arch }}/"micromamba-*.tar.bz2 "pkg/"
-          mkdir -p "${{ github.workspace }}/artifacts"
-          cp pkg/bin/micromamba "${{ github.workspace }}/artifacts"
-      - name: Archive conda-build artifact
-        if: failure()
-        run: tar -czf ${{ github.workspace }}/micromamba-conda-build-failed-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz $MAMBA_ROOT_PREFIX/envs/mambabuild/conda-bld/micromamba_*
+          cd micromamba-feedstock/
+          # Special values for running the feedstock with a local source
+          export FEEDSTOCK_ROOT="${PWD}"
+          export CI="local"
+          # For OSX not using Docker
+          export CONDA_BLD_PATH="${PWD}/build_artifacts"
+          mkdir -p "${CONDA_BLD_PATH}"
+          python build-locally.py "${{ matrix.platform }}_${{ matrix.arch }}_"
+      # The build_locally.py script will test all Linux builds, which fails outside of linux-64
+      # - name: Build conda package (Linux emulated)
+      #   if: ${{ matrix.platform == 'linux' && matrix.arch != '64' }}
+      #   uses: uraimo/run-on-arch-action@v2
+      #   with:
+      #     arch: ${{ matrix.arch }}
+      #     distro: ubuntu_latest
+      #     dockerRunArgs: -v /var/run/docker.sock:/var/run/docker.sock
+      #     install: |
+      #       apt-get update -y
+      #       apt-get install -y python3 docker.io
+      #     run: |
+      #       cd micromamba-feedstock/
+      #       # Special values for running the feedstock with a local source
+      #       export FEEDSTOCK_ROOT="${PWD}"
+      #       export CI="local"
+      #       python3 build-locally.py "${{ matrix.platform }}_${{ matrix.arch }}_"
+      # - name: Unpack micromamba package
+      #   shell: bash -l {0}
+      #   run: |
+      #     ls micromamba-feedstock/build_artifacts
+      #     micromamba package extract \
+      #       "micromamba-feedstock/build_artifacts/${{ matrix.platform }}-${{ matrix.arch }}/"micromamba-*.tar.bz2 "pkg/"
+      #     mkdir -p "${{ github.workspace }}/artifacts"
+      #     cp pkg/bin/micromamba "${{ github.workspace }}/artifacts"
+      # - name: Archive conda-build artifact
+      #   if: failure()
+      #   run: tar -czf ${{ github.workspace }}/micromamba-conda-build-failed-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz $MAMBA_ROOT_PREFIX/envs/mambabuild/conda-bld/micromamba_*
+      - run: |
+          set -x
+          ls -l /usr/local/bin
       - name: Upload conda build artifacts
         uses: actions/upload-artifact@v3
         if: failure()
