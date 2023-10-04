@@ -43,11 +43,11 @@ using namespace mamba;  // NOLINT(build/namespaces)
 
 
 void
-set_ps_command(CLI::App* subcom, Context& context)
+set_ps_command(CLI::App* subcom)
 {
     auto list_subcom = subcom->add_subcommand("list");
 
-    auto list_callback = [&]()
+    auto list_callback = []()
     {
         nlohmann::json info;
         if (fs::is_directory(proc_dir()))
@@ -66,7 +66,7 @@ set_ps_command(CLI::App* subcom, Context& context)
             auto prefix = el["prefix"].get<std::string>();
             if (!prefix.empty())
             {
-                prefix = env_name(context, prefix);
+                prefix = env_name(prefix);
             }
 
             table.add_row({
@@ -120,7 +120,7 @@ set_ps_command(CLI::App* subcom, Context& context)
 #endif
             for (auto& p : procs)
             {
-                PID pid = std::stoi(p["pid"].get<std::string>());
+                PID pid = std::stoull(p["pid"].get<std::string>());
                 stop_process(p["name"], pid);
             }
             if (procs.empty())
@@ -209,10 +209,9 @@ set_run_command(CLI::App* subcom, Configuration& config)
                 stream_options |= (sinkin ? 0 : static_cast<int>(STREAM_OPTIONS::SINKIN));
             }
 
-            auto& ctx = config.context();
-
             auto const get_prefix = [&]()
             {
+                auto& ctx = Context::instance();
                 if (auto prefix = ctx.prefix_params.target_prefix; !prefix.empty())
                 {
                     return prefix;
@@ -221,7 +220,6 @@ set_run_command(CLI::App* subcom, Configuration& config)
             };
 
             int exit_code = mamba::run_in_environment(
-                config.context(),
                 get_prefix(),
                 command,
                 cwd,

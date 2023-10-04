@@ -45,7 +45,6 @@ set_common_search(CLI::App* subcom, mamba::Configuration& config, bool is_repoqu
     }
     else
     {
-        // `search` and `repoquery search` are equivalent
         query_type = "search";
     }
 
@@ -107,10 +106,8 @@ set_common_search(CLI::App* subcom, mamba::Configuration& config, bool is_repoqu
             {
                 format = QueryResultFormat::kTREE;
             }
-            // Best guess to detect wildcard search; if there's no wildcard search, we want to show
-            // the pretty single package view.
-            if (qtype == QueryType::kSEARCH
-                && (pretty_print || specs[0].find("*") == std::string::npos))
+
+            if (qtype == QueryType::kSEARCH && pretty_print)
             {
                 format = QueryResultFormat::kPRETTY;
             }

@@ -7,14 +7,11 @@
 #include <regex>
 
 #include "mamba/core/channel.hpp"
-#include "mamba/core/context.hpp"
 #include "mamba/core/environment.hpp"
 #include "mamba/core/match_spec.hpp"
 #include "mamba/core/output.hpp"
-#include "mamba/core/util.hpp"
-#include "mamba/specs/archive.hpp"
+#include "mamba/core/url.hpp"
 #include "mamba/util/string.hpp"
-#include "mamba/util/url_manip.hpp"
 
 namespace mamba
 {
@@ -70,12 +67,9 @@ namespace mamba
 
     void MatchSpec::parse(ChannelContext& channel_context)
     {
-        std::string spec_str = spec;
-        if (spec_str.empty())
-        {
-            return;
-        }
         LOG_INFO << "Parsing MatchSpec " << spec;
+        std::string spec_str = spec;
+
         std::size_t idx = spec_str.find('#');
         if (idx != std::string::npos)
         {
@@ -83,12 +77,12 @@ namespace mamba
         }
         spec_str = util::strip(spec_str);
 
-        if (specs::has_archive_extension(spec_str))
+        if (is_package_file(spec_str))
         {
-            if (!util::url_has_scheme(spec_str))
+            if (!has_scheme(spec_str))
             {
                 LOG_INFO << "need to expand path!";
-                spec_str = util::path_or_url_to_url(fs::absolute(env::expand_user(spec_str)).string());
+                spec_str = path_to_url(fs::absolute(env::expand_user(spec_str)).string());
             }
             auto& parsed_channel = channel_context.make_channel(spec_str);
 
@@ -183,20 +177,17 @@ namespace mamba
         {
             throw std::runtime_error("Parsing of channel / namespace / subdir failed.");
         }
-
-        std::string cleaned_url;
-        std::string platform;
-        util::split_platform(
-            get_known_platforms(),
-            channel,
-            channel_context.context().platform,
-            channel,
-            platform
-        );
-        if (!platform.empty())
-        {
-            subdir = platform;
-        }
+        // TODO implement Channel, and parsing of the channel here!
+        // channel = subdir = channel_str;
+        // channel, subdir = _parse_channel(channel_str)
+        // if 'channel' in brackets:
+        //     b_channel, b_subdir = _parse_channel(brackets.pop('channel'))
+        //     if b_channel:
+        //         channel = b_channel
+        //     if b_subdir:
+        //         subdir = b_subdir
+        // if 'subdir' in brackets:
+        //     subdir = brackets.pop('subdir')
 
         // support faulty conda matchspecs such as `libblas=[build=*mkl]`, which is
         // the repr of `libblas=*=*mkl`
@@ -288,10 +279,7 @@ namespace mamba
             }
             else if (k == "subdir")
             {
-                if (platform.empty())
-                {
-                    subdir = v;
-                }
+                subdir = v;
             }
             else if (k == "url")
             {
@@ -308,6 +296,7 @@ namespace mamba
 
     std::string MatchSpec::conda_build_form() const
     {
+        assert(!name.empty());
         std::stringstream res;
         res << name;
         if (!version.empty())

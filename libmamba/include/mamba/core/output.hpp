@@ -21,9 +21,7 @@
 
 namespace mamba
 {
-    class Context;
-
-    std::string cut_repo_name(std::string_view reponame);
+    std::string cut_repo_name(const std::string& reponame);
 
     namespace printers
     {
@@ -35,11 +33,6 @@ namespace mamba
             FormattedString() = default;
 
             inline FormattedString(const std::string& i)
-                : s(i)
-            {
-            }
-
-            inline FormattedString(const std::string_view i)
                 : s(i)
             {
             }
@@ -60,20 +53,6 @@ namespace mamba
             left,
             right,
         };
-
-        constexpr auto alignmentMarker(alignment a) -> std::string_view
-        {
-            switch (a)
-            {
-                case alignment::right:
-                    return "alignment_right";
-                case alignment::left:
-                    return "alignment_right";
-                default:
-                    assert(false);
-                    return "";
-            }
-        }
 
         class Table
         {
@@ -147,9 +126,9 @@ namespace mamba
 
         void cancel_json_print();
 
-        const Context& context() const;
+    protected:
 
-        Console(const Context& context);
+        Console();
         ~Console();
 
     private:
@@ -160,9 +139,6 @@ namespace mamba
         std::unique_ptr<ConsoleData> p_data;
 
         friend class ProgressProxy;
-
-        static void set_singleton(Console& console);
-        static void clear_singleton();
     };
 
     class MessageLogger
@@ -206,4 +182,4 @@ namespace mamba
 #define LOG_ERROR LOG(mamba::log_level::err)
 #define LOG_CRITICAL LOG(mamba::log_level::critical)
 
-#endif  // MAMBA_CORE_OUTPUT_HPP
+#endif  // MAMBA_OUTPUT_HPP

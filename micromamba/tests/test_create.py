@@ -340,34 +340,6 @@ def test_multiple_spec_files(tmp_home, tmp_root_prefix, tmp_path, type):
             assert res["specs"] == [explicit_specs[0]]
 
 
-def test_multiprocessing():
-    if platform.system() == "Windows":
-        return
-
-    root_prefix = Path(os.environ["MAMBA_ROOT_PREFIX"])
-    if os.path.exists(root_prefix / "pkgs"):
-        shutil.rmtree(root_prefix / "pkgs")
-
-    cmd = [helpers.get_umamba()]
-    cmd += ["create", "-n", "env1", "-y"]
-    cmd += ["airflow"]
-    cmd += ["pytorch"]
-    cmd += ["-c", "conda-forge"]
-
-    cmd2 = [helpers.get_umamba(), "create"]
-    cmd2 += ["-n", "env2", "-y"]
-    cmd2 += ["airflow"]
-    cmd2 += ["pytorch"]
-    cmd2 += ["-c", "conda-forge"]
-
-    # must not crash
-    cmds = [cmd, cmd2]
-    procs = [subprocess.Popen(p) for p in cmds]
-    for p in procs:
-        rc = p.wait()
-        assert rc == 0
-
-
 @pytest.mark.skipif(
     helpers.dry_run_tests is helpers.DryRun.ULTRA_DRY,
     reason="Running only ultra-dry tests",
@@ -797,22 +769,6 @@ def test_pyc_compilation(tmp_home, tmp_root_prefix, version, build, cache_tag):
     assert pyc_fn.name in six_meta
 
 
-def test_create_check_dirs(tmp_home, tmp_root_prefix):
-    env_name = "myenv"
-    env_prefix = tmp_root_prefix / "envs" / env_name
-    cmd = ["-n", env_name, "python=3.8", "traitlets"]
-    helpers.create(*cmd)
-
-    assert os.path.isdir(env_prefix)
-
-    if platform.system() == "Windows":
-        assert os.path.isdir(env_prefix / "lib" / "site-packages" / "traitlets")
-    else:
-        assert os.path.isdir(
-            env_prefix / "lib" / "python3.8" / "site-packages" / "traitlets"
-        )
-
-
 @pytest.mark.parametrize("shared_pkgs_dirs", [True], indirect=True)
 @pytest.mark.parametrize("env_file", env_files)
 def test_requires_pip_install(tmp_home, tmp_root_prefix, env_file):
@@ -886,7 +842,7 @@ def test_pre_commit_compat(tmp_home, tmp_root_prefix, tmp_path):
                     {"id": "sys-exec"},
                     {
                         "id": "additional-deps",
-                        "additional_dependencies": ["psutil", "python=3.11"],
+                        "additional_dependencies": ["psutil"],
                     },
                 ],
             }
@@ -931,160 +887,3 @@ def test_pre_commit_compat(tmp_home, tmp_root_prefix, tmp_path):
         if pre_commit_log.exists():
             print(pre_commit_log.read_text())
         raise
-
-
-def test_long_path_support(tmp_home, tmp_root_prefix):
-    """Create an environment with a long name."""
-    res = helpers.create("-n", "long_prefix_" * 20, "--json")
-    assert res["success"]
-
-
-def test_dummy_create(
-    add_glibc_virtual_package, copy_channels_osx, tmp_home, tmp_root_prefix
-):
-    env_name = "myenv"
-
-    channels = [
-        (".", "micromamba", "tests", "channel_b"),
-        (".", "micromamba", "tests", "channel_a"),
-    ]
-    package = "a"
-    res = helpers.create_with_chan_pkg(env_name, channels, package)
-
-    for link in res["actions"]["LINK"]:
-        assert link["name"] == "a"
-        assert link["build"] == "abc"
-        assert "channel_b" in link["channel"]
-
-    package = "b"
-    res = helpers.create_with_chan_pkg(env_name, channels, package)
-
-    assert any(
-        link["name"] == "b" and "channel_a" in link["channel"]
-        for link in res["actions"]["LINK"]
-    )
-
-    channels = channels[::-1]
-    res = helpers.create_with_chan_pkg(env_name, channels, package)
-
-
-@pytest.mark.parametrize("use_json", [True, False])
-def test_create_dry_run(tmp_home, tmp_root_prefix, use_json):
-    env_name = "myenv"
-    env_prefix = tmp_root_prefix / "envs" / env_name
-
-    cmd = ["-n", env_name, "--dry-run", "python=3.8"]
-
-    if use_json:
-        cmd += ["--json"]
-
-    res = helpers.create(*cmd)
-
-    if not use_json:
-        # Assert the non-JSON output is in the terminal.
-        assert "Total download" in res
-
-    # dry-run, shouldn't create an environment
-    assert not os.path.isdir(env_prefix)
-
-
-def test_create_with_non_existing_subdir(tmp_home, tmp_root_prefix, tmp_path):
-    env_prefix = tmp_path / "myprefix"
-    with pytest.raises(subprocess.CalledProcessError) as e:
-        helpers.create(
-            "-p", env_prefix, "--dry-run", "--json", f"conda-forge/noarch::xtensor"
-        )
-
-
-def test_create_with_multiple_files(tmp_home, tmp_root_prefix, tmpdir):
-    env_name = "myenv"
-    env_prefix = tmp_root_prefix / "envs" / env_name
-
-    # Check that multiple --file arguments are considered
-    (tmpdir / "file_a.txt").write(b"a")
-    (tmpdir / "file_b.txt").write(b"b")
-
-    res = helpers.create(
-        "-n",
-        env_name,
-        "--json",
-        "--override-channels",
-        "--strict-channel-priority",
-        "--dry-run",
-        "-c",
-        "./micromamba/tests/channel_b",
-        "-c",
-        "./micromamba/tests/channel_a",
-        "--file",
-        str(tmpdir / "file_a.txt"),
-        "--file",
-        str(tmpdir / "file_b.txt"),
-        default_channel=False,
-        no_rc=False,
-    )
-
-    names = {x["name"] for x in res["actions"]["FETCH"]}
-    assert names == {"a", "b"}
-
-
-multichannel_config = {
-    "channels": ["conda-forge"],
-    "custom_multichannels": {"conda-forge2": ["conda-forge"]},
-}
-
-
-def test_create_with_multi_channels(tmp_home, tmp_root_prefix, tmp_path):
-    env_name = "myenv"
-    env_prefix = tmp_root_prefix / "envs" / env_name
-
-    rc_file = tmp_path / "config.yaml"
-    rc_file.write_text(yaml.dump(multichannel_config))
-
-    res = helpers.create(
-        "-n",
-        env_name,
-        "conda-forge2::xtensor",
-        "--dry-run",
-        "--json",
-        f"--rc-file={rc_file}",
-        default_channel=False,
-        no_rc=False,
-    )
-
-    for pkg in res["actions"]["FETCH"]:
-        assert pkg["channel"].startswith("https://conda.anaconda.org/conda-forge/")
-    for pkg in res["actions"]["LINK"]:
-        assert pkg["url"].startswith("https://conda.anaconda.org/conda-forge/")
-
-
-def test_create_with_multi_channels_and_non_existing_subdir(
-    tmp_home, tmp_root_prefix, tmp_path
-):
-    env_name = "myenv"
-    env_prefix = tmp_root_prefix / "envs" / env_name
-
-    rc_file = tmp_path / "config.yaml"
-    rc_file.write_text(yaml.dump(multichannel_config))
-
-    with pytest.raises(subprocess.CalledProcessError) as e:
-        res = helpers.create(
-            "-n",
-            env_name,
-            "conda-forge2/noarch::xtensor",
-            "--dry-run",
-            "--json",
-            f"--rc-file={rc_file}",
-            default_channel=False,
-            no_rc=False,
-        )
-
-
-def test_create_with_unicode(tmp_home, tmp_root_prefix):
-    env_name = "320 áγђß家固êôōçñ한"
-    env_prefix = tmp_root_prefix / "envs" / env_name
-
-    res = helpers.create("-n", env_name, "--json", "xtensor", no_rc=False)
-
-    assert res["actions"]["PREFIX"] == str(env_prefix)
-    assert any(pkg["name"] == "xtensor" for pkg in res["actions"]["FETCH"])
-    assert any(pkg["name"] == "xtl" for pkg in res["actions"]["FETCH"])

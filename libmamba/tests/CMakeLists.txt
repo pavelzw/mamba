@@ -1,14 +1,9 @@
 cmake_minimum_required(VERSION 3.16)
 
-if (BUILD_SHARED)
-    set(libmamba_target "libmamba")
-else ()
-    set(libmamba_target "libmamba-static")
-endif()
 
 add_executable(testing_libmamba_lock libmamba_lock/lock.cpp)
 
-target_link_libraries(testing_libmamba_lock PUBLIC ${libmamba_target})
+target_link_libraries(testing_libmamba_lock PUBLIC libmamba)
 
 target_compile_features(testing_libmamba_lock PUBLIC cxx_std_17)
 
@@ -16,7 +11,6 @@ mamba_target_add_compile_warnings(testing_libmamba_lock WARNING_AS_ERROR ${MAMBA
 
 
 set(LIBMAMBA_TEST_SRCS
-    include/mambatests.hpp
     src/test_main.cpp
     # C++ wrapping of libsolv
     src/solv-cpp/pool_data.cpp
@@ -26,7 +20,6 @@ set(LIBMAMBA_TEST_SRCS
     src/solv-cpp/test_solvable.cpp
     src/solv-cpp/test_solver.cpp
     src/solv-cpp/test_transaction.cpp
-    src/solv-cpp/test_scenarios.cpp
     # Utility library
     src/util/test_string.cpp
     src/util/test_cast.cpp
@@ -36,13 +29,8 @@ set(LIBMAMBA_TEST_SRCS
     src/util/test_flat_bool_expr_tree.cpp
     src/util/test_graph.cpp
     src/util/test_iterator.cpp
-    src/util/test_path_manip.cpp
-    src/util/test_url_manip.cpp
-    src/util/test_url.cpp
     # Implementation of version and matching specs
-    src/specs/test_archive.cpp
     src/specs/test_platform.cpp
-    src/specs/test_conda_url.cpp
     src/specs/test_version.cpp
     src/specs/test_version_spec.cpp
     src/specs/test_repo_data.cpp
@@ -52,7 +40,6 @@ set(LIBMAMBA_TEST_SRCS
     src/core/test_channel.cpp
     src/core/test_configuration.cpp
     src/core/test_cpp.cpp
-    src/core/test_downloader.cpp
     src/core/test_env_file_reading.cpp
     src/core/test_environments_manager.cpp
     src/core/test_history.cpp
@@ -62,6 +49,8 @@ set(LIBMAMBA_TEST_SRCS
     src/core/test_progress_bar.cpp
     src/core/test_shell_init.cpp
     src/core/test_thread_utils.cpp
+    src/core/test_transfer.cpp
+    src/core/test_url.cpp
     src/core/test_validate.cpp
     src/core/test_virtual_packages.cpp
     src/core/test_util.cpp
@@ -82,10 +71,7 @@ mamba_target_add_compile_warnings(test_libmamba WARNING_AS_ERROR ${MAMBA_WARNING
 
 target_include_directories(
     test_libmamba
-    PRIVATE
-        "${CMAKE_CURRENT_SOURCE_DIR}/include"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src"
-        "${CMAKE_SOURCE_DIR}/libmamba/src"
+    PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src" "${CMAKE_SOURCE_DIR}/libmamba/src"
 )
 
 find_package(doctest REQUIRED)
@@ -93,13 +79,8 @@ find_package(Threads REQUIRED)
 
 target_link_libraries(
     test_libmamba
-    PUBLIC
-        ${libmamba_target}
-        reproc
-        reproc++
-    PRIVATE
-        doctest::doctest
-        Threads::Threads
+    PUBLIC libmamba
+    PRIVATE doctest::doctest Threads::Threads
 )
 
 # Copy data directory into binary dir to avoid modifications

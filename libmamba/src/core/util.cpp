@@ -37,7 +37,6 @@ extern "C"
 #include <memory>
 #include <mutex>
 #include <optional>
-#include <regex>
 #include <unordered_map>
 
 #include <openssl/evp.h>
@@ -45,42 +44,23 @@ extern "C"
 #include "mamba/core/context.hpp"
 #include "mamba/core/environment.hpp"
 #include "mamba/core/execution.hpp"
+#include "mamba/core/fsutil.hpp"
 #include "mamba/core/invoke.hpp"
 #include "mamba/core/output.hpp"
 #include "mamba/core/shell_init.hpp"
 #include "mamba/core/thread_utils.hpp"
+#include "mamba/core/url.hpp"
 #include "mamba/core/util.hpp"
 #include "mamba/core/util_os.hpp"
 #include "mamba/core/util_random.hpp"
-#include "mamba/util/build.hpp"
 #include "mamba/util/compare.hpp"
 #include "mamba/util/string.hpp"
-#include "mamba/util/url.hpp"
 
 namespace mamba
 {
-    namespace
+    bool is_package_file(std::string_view fn)
     {
-        std::atomic<bool> persist_temporary_files{ false };
-        std::atomic<bool> persist_temporary_directories{ false };
-    }
-
-    bool must_persist_temporary_files()
-    {
-        return persist_temporary_files;
-    }
-    bool set_persist_temporary_files(bool new_value)
-    {
-        return persist_temporary_files.exchange(new_value);
-    }
-
-    bool must_persist_temporary_directories()
-    {
-        return persist_temporary_directories;
-    }
-    bool set_persist_temporary_directories(bool new_value)
-    {
-        return persist_temporary_directories.exchange(new_value);
+        return util::ends_with(fn, ".tar.bz2") || util::ends_with(fn, ".conda");
     }
 
     // This function returns true even for broken symlinks
@@ -167,7 +147,7 @@ namespace mamba
 
     TemporaryDirectory::~TemporaryDirectory()
     {
-        if (!must_persist_temporary_directories())
+        if (!Context::instance().keep_temp_directories)
         {
             fs::remove_all(m_path);
         }
@@ -226,7 +206,7 @@ namespace mamba
 
     TemporaryFile::~TemporaryFile()
     {
-        if (!must_persist_temporary_files())
+        if (!Context::instance().keep_temp_files)
         {
             fs::remove(m_path);
         }
@@ -334,7 +314,7 @@ namespace mamba
 
     std::string quote_for_shell(const std::vector<std::string>& arguments, const std::string& shell)
     {
-        if ((shell.empty() && util::on_win) || shell == "cmdexe")
+        if ((shell.empty() && on_win) || shell == "cmdexe")
         {
             // ported from CPython's list2cmdline to C++
             //
@@ -524,7 +504,7 @@ namespace mamba
         return deleted_files;
     }
 
-    std::size_t remove_or_rename(const Context& context, const fs::u8path& path)
+    std::size_t remove_or_rename(const fs::u8path& path)
     {
         std::error_code ec;
         std::size_t result = 0;
@@ -579,13 +559,16 @@ namespace mamba
                 {
                     // The conda-meta directory is locked by transaction execute
                     auto trash_index = open_ofstream(
-                        context.prefix_params.target_prefix / "conda-meta" / "mamba_trash.txt",
+                        Context::instance().prefix_params.target_prefix / "conda-meta"
+                            / "mamba_trash.txt",
                         std::ios::app | std::ios::binary
                     );
 
                     // TODO add some unicode tests here?
-                    trash_index << fs::relative(trash_file, context.prefix_params.target_prefix).string()
-                                << "\n";
+                    trash_index
+                        << fs::relative(trash_file, Context::instance().prefix_params.target_prefix)
+                               .string()
+                        << "\n";
                     return 1;
                 }
 
@@ -992,15 +975,6 @@ namespace mamba
                 return m_is_file_locking_allowed.exchange(allow);
             }
 
-            std::chrono::seconds default_file_locking_timeout() const
-            {
-                return m_default_lock_timeout;
-            }
-            std::chrono::seconds set_file_locking_timeout(const std::chrono::seconds& new_timeout)
-            {
-                return m_default_lock_timeout.exchange(new_timeout);
-            }
-
             tl::expected<std::shared_ptr<LockFileOwner>, mamba_error>
             acquire_lock(const fs::u8path& file_path, const std::chrono::seconds timeout)
             {
@@ -1071,7 +1045,6 @@ namespace mamba
         private:
 
             std::atomic_bool m_is_file_locking_allowed{ true };
-            std::atomic<std::chrono::seconds> m_default_lock_timeout{ std::chrono::seconds::zero() };
 
             // TODO: replace by something like boost::multiindex or equivalent to avoid having to
             // handle 2 hashmaps
@@ -1107,15 +1080,6 @@ namespace mamba
         return files_locked_by_this_process.allow_file_locking(allow);
     }
 
-    std::chrono::seconds default_file_locking_timeout()
-    {
-        return files_locked_by_this_process.default_file_locking_timeout();
-    }
-    std::chrono::seconds set_file_locking_timeout(const std::chrono::seconds& new_timeout)
-    {
-        return files_locked_by_this_process.set_file_locking_timeout(new_timeout);
-    }
-
     bool LockFileOwner::lock_non_blocking()
     {
         if (files_locked_by_this_process.is_locked(m_lockfile_path))
@@ -1136,7 +1100,7 @@ namespace mamba
     }
 
     LockFile::LockFile(const fs::u8path& path)
-        : LockFile(path, files_locked_by_this_process.default_file_locking_timeout())
+        : LockFile(path, std::chrono::seconds(Context::instance().lock_timeout))
     {
     }
 
@@ -1331,21 +1295,12 @@ namespace mamba
     }
 
 
-    WrappedCallOptions WrappedCallOptions::from_context(const Context& context)
-    {
-        return {
-            /* .is_micromamba = */ context.command_params.is_micromamba,
-            /* .dev_mode = */ context.dev,
-            /* .debug_wrapper_scripts = */ false,
-        };
-    }
-
     std::unique_ptr<TemporaryFile> wrap_call(
-        const Context& context [[maybe_unused]],
         const fs::u8path& root_prefix,
         const fs::u8path& prefix,
-        const std::vector<std::string>& arguments,
-        const WrappedCallOptions options
+        bool dev_mode,
+        bool debug_wrapper_scripts,
+        const std::vector<std::string>& arguments
     )
     {
         // todo add abspath here
@@ -1358,9 +1313,10 @@ namespace mamba
         // TODO
         std::string CONDA_PACKAGE_ROOT = "";
 
-        std::string bat_name = options.is_micromamba ? "micromamba.bat" : "conda.bat";
+        std::string bat_name = Context::instance().command_params.is_micromamba ? "micromamba.bat"
+                                                                                : "conda.bat";
 
-        if (options.dev_mode)
+        if (dev_mode)
         {
             conda_bat = (fs::u8path(CONDA_PACKAGE_ROOT) / "shell" / "condabin" / "conda.bat").string();
         }
@@ -1369,17 +1325,17 @@ namespace mamba
             conda_bat = env::get("CONDA_BAT")
                             .value_or((fs::absolute(root_prefix) / "condabin" / bat_name).string());
         }
-        if (!fs::exists(conda_bat) && options.is_micromamba)
+        if (!fs::exists(conda_bat) && Context::instance().command_params.is_micromamba)
         {
             // this adds in the needed .bat files for activation
-            init_root_prefix_cmdexe(context, root_prefix);
+            init_root_prefix_cmdexe(Context::instance().prefix_params.root_prefix);
         }
 
         auto tf = std::make_unique<TemporaryFile>("mamba_bat_", ".bat");
 
         std::ofstream out = open_ofstream(tf->path());
 
-        std::string silencer = options.debug_wrapper_scripts ? "" : "@";
+        std::string silencer = debug_wrapper_scripts ? "" : "@";
 
         out << silencer << "ECHO OFF\n";
         out << silencer << "SET PYTHONIOENCODING=utf-8\n";
@@ -1389,7 +1345,7 @@ namespace mamba
                "do set \"_CONDA_OLD_CHCP=%%B\"\n";
         out << silencer << "chcp 65001 > NUL\n";
 
-        if (options.dev_mode)
+        if (dev_mode)
         {
             // from conda.core.initialize import CONDA_PACKAGE_ROOT
             out << silencer << "SET CONDA_DEV=1\n";
@@ -1404,7 +1360,7 @@ namespace mamba
             out << silencer << "SET _CE_CONDA=conda\n";
         }
 
-        if (options.debug_wrapper_scripts)
+        if (debug_wrapper_scripts)
         {
             out << "echo *** environment before *** 1>&2\n";
             out << "SET 1>&2\n";
@@ -1413,7 +1369,7 @@ namespace mamba
         out << silencer << "CALL \"" << conda_bat << "\" activate " << prefix << "\n";
         out << silencer << "IF %ERRORLEVEL% NEQ 0 EXIT /b %ERRORLEVEL%\n";
 
-        if (options.debug_wrapper_scripts)
+        if (debug_wrapper_scripts)
         {
             out << "echo *** environment after *** 1>&2\n";
             out << "SET 1>&2\n";
@@ -1425,12 +1381,12 @@ namespace mamba
 
         std::string shebang, dev_arg;
 
-        if (!options.is_micromamba)
+        if (!Context::instance().command_params.is_micromamba)
         {
             // During tests, we sometimes like to have a temp env with e.g. an old python
             // in it and have it run tests against the very latest development sources.
             // For that to work we need extra smarts here, we want it to be instead:
-            if (options.dev_mode)
+            if (dev_mode)
             {
                 shebang += std::string(root_prefix / "bin" / "python");
                 shebang += " -m conda";
@@ -1449,7 +1405,7 @@ namespace mamba
                 }
             }
 
-            if (options.dev_mode)
+            if (dev_mode)
             {
                 // out << ">&2 export PYTHONPATH=" << CONDA_PACKAGE_ROOT << "\n";
             }
@@ -1461,9 +1417,9 @@ namespace mamba
             // Micromamba hook
             out << "export MAMBA_EXE=" << std::quoted(get_self_exe_path().string(), '\'') << "\n";
             hook_quoted << "$MAMBA_EXE 'shell' 'hook' '-s' 'bash' '-r' "
-                        << std::quoted(root_prefix.string(), '\'');
+                        << std::quoted(Context::instance().prefix_params.root_prefix.string(), '\'');
         }
-        if (options.debug_wrapper_scripts)
+        if (debug_wrapper_scripts)
         {
             out << "set -x\n";
             out << ">&2 echo \"*** environment before ***\"\n"
@@ -1472,7 +1428,7 @@ namespace mamba
         }
         out << "eval \"$(" << hook_quoted.str() << ")\"\n";
 
-        if (!options.is_micromamba)
+        if (!Context::instance().command_params.is_micromamba)
         {
             out << "conda activate " << dev_arg << " " << std::quoted(prefix.string()) << "\n";
         }
@@ -1482,7 +1438,7 @@ namespace mamba
         }
 
 
-        if (options.debug_wrapper_scripts)
+        if (debug_wrapper_scripts)
         {
             out << ">&2 echo \"*** environment after ***\"\n"
                 << ">&2 env\n";
@@ -1493,16 +1449,13 @@ namespace mamba
         return tf;
     }
 
-    PreparedWrappedCall prepare_wrapped_call(
-        const Context& context,
-        const fs::u8path& prefix,
-        const std::vector<std::string>& cmd
-    )
+    std::tuple<std::vector<std::string>, std::unique_ptr<TemporaryFile>>
+    prepare_wrapped_call(const fs::u8path& prefix, const std::vector<std::string>& cmd)
     {
         std::vector<std::string> command_args;
         std::unique_ptr<TemporaryFile> script_file;
 
-        if (util::on_win)
+        if (on_win)
         {
             ensure_comspec_set();
             auto comspec = env::get("COMSPEC");
@@ -1514,11 +1467,11 @@ namespace mamba
             }
 
             script_file = wrap_call(
-                context,
-                context.prefix_params.root_prefix,
+                Context::instance().prefix_params.root_prefix,
                 prefix,
-                cmd,
-                WrappedCallOptions::from_context(context)
+                Context::instance().dev,
+                false,
+                cmd
             );
 
             command_args = { comspec.value(), "/D", "/C", script_file->path().string() };
@@ -1538,16 +1491,16 @@ namespace mamba
             }
 
             script_file = wrap_call(
-                context,
-                context.prefix_params.root_prefix,
+                Context::instance().prefix_params.root_prefix,
                 prefix,
-                cmd,
-                WrappedCallOptions::from_context(context)
+                Context::instance().dev,
+                false,
+                cmd
             );
             command_args.push_back(shell_path.string());
             command_args.push_back(script_file->path().string());
         }
-        return { command_args, std::move(script_file) };
+        return std::make_tuple(command_args, std::move(script_file));
     }
 
     bool is_yaml_file_name(std::string_view filename)
@@ -1591,20 +1544,19 @@ namespace mamba
         return std::string(reinterpret_cast<const char*>(output.data()));
     }
 
-
-    std::optional<std::string>
-    proxy_match(const std::string& url, const std::map<std::string, std::string>& proxy_servers)
+    std::optional<std::string> proxy_match(const std::string& url)
     {
         /* This is a reimplementation of requests.utils.select_proxy(), of the python requests
         library used by conda */
-        if (proxy_servers.empty())
+        auto& proxies = Context::instance().proxy_servers;
+        if (proxies.empty())
         {
             return std::nullopt;
         }
 
-        const auto url_parsed = util::URL::parse(url);
-        auto scheme = url_parsed.scheme();
-        auto host = url_parsed.host();
+        auto handler = URLHandler(url);
+        auto scheme = handler.scheme();
+        auto host = handler.host();
         std::vector<std::string> options;
 
         if (host.empty())
@@ -1621,8 +1573,8 @@ namespace mamba
 
         for (auto& option : options)
         {
-            auto proxy = proxy_servers.find(option);
-            if (proxy != proxy_servers.end())
+            auto proxy = proxies.find(option);
+            if (proxy != proxies.end())
             {
                 return proxy->second;
             }
@@ -1631,24 +1583,16 @@ namespace mamba
         return std::nullopt;
     }
 
-    namespace
-    {
-        // usernames on anaconda.org can have a underscore, which influences the
-        // first two characters
-        inline const std::regex token_regex{ "/t/([a-zA-Z0-9-_]{0,2}[a-zA-Z0-9-]*)" };
-        inline const std::regex http_basicauth_regex{ "(://|^)([^\\s]+):([^\\s]+)@" };
-    }
-
     std::string hide_secrets(std::string_view str)
     {
         std::string copy(str);
 
         if (util::contains(str, "/t/"))
         {
-            copy = std::regex_replace(copy, token_regex, "/t/*****");
+            copy = std::regex_replace(copy, Context::instance().token_regex, "/t/*****");
         }
 
-        copy = std::regex_replace(copy, http_basicauth_regex, "$1$2:*****@");
+        copy = std::regex_replace(copy, Context::instance().http_basicauth_regex, "$1$2:*****@");
 
         return copy;
     }

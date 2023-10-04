@@ -25,7 +25,7 @@ namespace mamba
             );
         config.load();
 
-        ChannelContext channel_context{ config.context() };
+        ChannelContext channel_context;
         detail::list_packages(regex, channel_context);
     }
 
@@ -43,7 +43,7 @@ namespace mamba
 
         void list_packages(std::string regex, ChannelContext& channel_context)
         {
-            auto& ctx = channel_context.context();
+            auto& ctx = Context::instance();
 
             auto sprefix_data = PrefixData::create(ctx.prefix_params.target_prefix, channel_context);
             if (!sprefix_data)

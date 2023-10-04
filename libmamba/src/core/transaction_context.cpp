@@ -10,7 +10,6 @@
 #include <reproc++/drain.hpp>
 
 #include "mamba/core/environment.hpp"
-#include "mamba/core/error_handling.hpp"
 #include "mamba/core/output.hpp"
 #include "mamba/core/transaction_context.hpp"
 #include "mamba/util/string.hpp"
@@ -90,16 +89,12 @@ namespace mamba
         }
     }
 
-    TransactionContext::TransactionContext() = default;
-
-    TransactionContext::TransactionContext(const Context& context)
-        : m_context(&context)
+    TransactionContext::TransactionContext()
     {
-        compile_pyc = this->context().compile_pyc;
+        compile_pyc = Context::instance().compile_pyc;
     }
 
     TransactionContext::TransactionContext(
-        const Context& context,
         const fs::u8path& ltarget_prefix,
         const std::pair<std::string, std::string>& py_versions,
         const std::vector<MatchSpec>& lrequested_specs
@@ -110,9 +105,8 @@ namespace mamba
         , python_version(py_versions.first)
         , old_python_version(py_versions.second)
         , requested_specs(lrequested_specs)
-        , m_context(&context)
     {
-        const auto& ctx = this->context();
+        auto& ctx = Context::instance();
         compile_pyc = ctx.compile_pyc;
         allow_softlinks = ctx.allow_softlinks;
         always_copy = ctx.always_copy;
@@ -141,13 +135,12 @@ namespace mamba
     }
 
     TransactionContext::TransactionContext(
-        const Context& context,
         const fs::u8path& ltarget_prefix,
         const fs::u8path& lrelocate_prefix,
         const std::pair<std::string, std::string>& py_versions,
         const std::vector<MatchSpec>& lrequested_specs
     )
-        : TransactionContext(context, ltarget_prefix, py_versions, lrequested_specs)
+        : TransactionContext(ltarget_prefix, py_versions, lrequested_specs)
     {
         if (lrelocate_prefix.empty())
         {
@@ -178,8 +171,6 @@ namespace mamba
             python_path = other.python_path;
             site_packages_path = other.site_packages_path;
             relink_noarch = other.relink_noarch;
-
-            m_context = other.m_context;
         }
         return *this;
     }
@@ -189,21 +180,8 @@ namespace mamba
         wait_for_pyc_compilation();
     }
 
-    void TransactionContext::throw_if_not_ready() const
-    {
-        if (m_context == nullptr)
-        {
-            throw mamba_error(
-                "attempted to use TransactionContext while no Context was specified",
-                mamba_error_code::internal_failure
-            );
-        }
-    }
-
     bool TransactionContext::start_pyc_compilation_process()
     {
-        throw_if_not_ready();
-
         if (m_pyc_process)
         {
             return true;
@@ -247,7 +225,7 @@ namespace mamba
         options.env.behavior = reproc::env::empty;
 #endif
         std::map<std::string, std::string> envmap;
-        auto& ctx = context();
+        auto& ctx = Context::instance();
         envmap["MAMBA_EXTRACT_THREADS"] = std::to_string(ctx.threads_params.extract_threads);
         auto qemu_ld_prefix = env::get("QEMU_LD_PREFIX");
         if (qemu_ld_prefix)
@@ -268,7 +246,7 @@ namespace mamba
         const std::string cwd = target_prefix.string();
         options.working_directory = cwd.c_str();
 
-        auto [wrapped_command, script_file] = prepare_wrapped_call(ctx, target_prefix, command);
+        auto [wrapped_command, script_file] = prepare_wrapped_call(target_prefix, command);
         m_pyc_script_file = std::move(script_file);
 
         LOG_INFO << "Running wrapped python compilation command " << util::join(" ", command);
@@ -287,8 +265,6 @@ namespace mamba
 
     bool TransactionContext::try_pyc_compilation(const std::vector<fs::u8path>& py_files)
     {
-        throw_if_not_ready();
-
         static std::mutex pyc_compilation_mutex;
         std::lock_guard<std::mutex> lock(pyc_compilation_mutex);
 
@@ -324,8 +300,6 @@ namespace mamba
 
     void TransactionContext::wait_for_pyc_compilation()
     {
-        throw_if_not_ready();
-
         if (m_pyc_process)
         {
             std::error_code ec;

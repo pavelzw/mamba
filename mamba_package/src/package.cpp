@@ -4,17 +4,15 @@
 //
 // The full license is in the file LICENSE, distributed with this software.
 
-#include "mamba/core/context.hpp"
 #include "mamba/core/package_handling.hpp"
 #include "mamba/util/string.hpp"
 
 #include "package.hpp"
 
-
 using namespace mamba;  // NOLINT(build/namespaces)
 
 void
-set_package_command(CLI::App* com, mamba::Context& context)
+set_package_command(CLI::App* com)
 {
     static std::string infile, dest;
     static int compression_level = -1;
@@ -28,7 +26,7 @@ set_package_command(CLI::App* com, mamba::Context& context)
         {
             std::cout << "Extracting " << fs::absolute(infile) << " to " << fs::absolute(dest)
                       << std::endl;
-            extract(fs::absolute(infile), fs::absolute(dest), ExtractOptions::from_context(context));
+            extract(fs::absolute(infile), fs::absolute(dest));
         }
     );
 
@@ -100,13 +98,7 @@ set_package_command(CLI::App* com, mamba::Context& context)
                 dest = infile.substr(0, infile.size() - 8) + ".tar.bz2";
             }
             std::cout << "Transmuting " << fs::absolute(infile) << " to " << dest << std::endl;
-            transmute(
-                fs::absolute(infile),
-                fs::absolute(dest),
-                compression_level,
-                compression_threads,
-                ExtractOptions::from_context(context)
-            );
+            transmute(fs::absolute(infile), fs::absolute(dest), compression_level, compression_threads);
         }
     );
 }

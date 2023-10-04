@@ -21,6 +21,7 @@
 #include "mamba/core/output.hpp"
 #include "mamba/core/thread_utils.hpp"
 #include "mamba/core/util_os.hpp"
+#include "mamba/core/util_scope.hpp"
 #include "mamba/version.hpp"
 
 #include "umamba.hpp"
@@ -33,13 +34,10 @@ int
 main(int argc, char** argv)
 {
     mamba::MainExecutor scoped_threads;
-    mamba::Context ctx{ {
-        /* .enable_logging_and_signal_handling = */ true,
-    } };
-    mamba::Console console{ ctx };
-    mamba::Configuration config{ ctx };
+    mamba::Configuration config;
 
     init_console();
+    auto& ctx = Context::instance();
 
     ctx.command_params.is_micromamba = true;
 

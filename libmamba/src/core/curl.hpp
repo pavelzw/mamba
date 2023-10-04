@@ -64,58 +64,19 @@ namespace mamba
         bool m_serious;
     };
 
-    class CURLId
-    {
-    public:
-
-        bool operator==(const CURLId& rhs) const;
-        bool operator!=(const CURLId& rhs) const;
-        bool operator<(const CURLId& rhs) const;
-        bool operator<=(const CURLId& rhs) const;
-        bool operator>(const CURLId& rhs) const;
-        bool operator>=(const CURLId& rhs) const;
-
-        std::size_t hash() const noexcept;
-
-    private:
-
-        explicit CURLId(CURL* handle = nullptr);
-
-        CURL* p_handle;
-
-        friend class CURLHandle;
-        friend class CURLMultiHandle;
-    };
-}
-
-template <>
-struct std::hash<mamba::CURLId>
-{
-    std::size_t operator()(const mamba::CURLId& arg) const noexcept
-    {
-        return arg.hash();
-    }
-};
-
-namespace mamba
-{
     class CURLHandle
     {
     public:
 
         CURLHandle();
-        ~CURLHandle();
-
-        CURLHandle(const CURLHandle&) = delete;
-        CURLHandle& operator=(const CURLHandle&) = delete;
-
         CURLHandle(CURLHandle&& rhs);
         CURLHandle& operator=(CURLHandle&& rhs);
+        ~CURLHandle();
 
         const std::pair<std::string_view, CurlLogLevel> get_ssl_backend_info();
 
         template <class T>
-        tl::expected<T, CURLcode> get_info(CURLINFO option) const;
+        tl::expected<T, CURLcode> get_info(CURLINFO option);
 
         void configure_handle(
             const std::string& url,
@@ -125,8 +86,6 @@ namespace mamba
             const std::optional<std::string>& proxy,
             const std::string& ssl_verify
         );
-
-        void reset_handle();
 
         CURLHandle& add_header(const std::string& header);
         CURLHandle& add_headers(const std::vector<std::string>& headers);
@@ -138,32 +97,24 @@ namespace mamba
         CURLHandle& set_opt_header();
 
         const char* get_error_buffer() const;
-        std::string get_curl_effective_url() const;
+        std::string get_curl_effective_url();
 
-        [[deprecated]] std::size_t get_result() const;
-        [[deprecated]] bool is_curl_res_ok() const;
+        std::size_t get_result() const;
+        bool is_curl_res_ok() const;
 
-        [[deprecated]] void set_result(CURLcode res);
+        void set_result(CURLcode res);
 
-        [[deprecated]] std::string get_res_error() const;
+        std::string get_res_error() const;
 
-        // Side-effect programming, to remove
-        [[deprecated]] bool can_proceed();
+        bool can_proceed();
         void perform();
-
-        CURLId get_id() const;
-
-        // New API to avoid storing result
-        static bool is_curl_res_ok(CURLcode res);
-        static std::string get_res_error(CURLcode res);
-        static bool can_retry(CURLcode res);
 
     private:
 
         CURL* m_handle;
         CURLcode m_result;  // Enum range from 0 to 99
         curl_slist* p_headers = nullptr;
-        std::array<char, CURL_ERROR_SIZE> m_errorbuffer;
+        char m_errorbuffer[CURL_ERROR_SIZE];
 
         friend CURL* unwrap(const CURLHandle&);
     };
@@ -171,9 +122,29 @@ namespace mamba
     bool operator==(const CURLHandle& lhs, const CURLHandle& rhs);
     bool operator!=(const CURLHandle& lhs, const CURLHandle& rhs);
 
+    class CURLReference
+    {
+    public:
+
+        CURLReference(CURL* handle);
+
+    private:
+
+        CURL* p_handle;
+
+        friend CURL* unwrap(const CURLReference&);
+    };
+
+    bool operator==(const CURLHandle& lhs, const CURLReference& rhs);
+    bool operator==(const CURLReference& lhs, const CURLHandle& rhs);
+    bool operator==(const CURLReference& lhs, const CURLReference& rhs);
+    bool operator!=(const CURLHandle& lhs, const CURLReference& rhs);
+    bool operator!=(const CURLReference& lhs, const CURLHandle& rhs);
+    bool operator!=(const CURLReference& lhs, const CURLReference& rhs);
+
     struct CURLMultiResponse
     {
-        CURLId m_handle_id;
+        CURLReference m_handle_ref;
         CURLcode m_transfer_result;
         bool m_transfer_done;
     };
@@ -187,9 +158,6 @@ namespace mamba
         explicit CURLMultiHandle(std::size_t max_parallel_downloads);
         ~CURLMultiHandle();
 
-        CURLMultiHandle(const CURLMultiHandle&) = delete;
-        CURLMultiHandle& operator=(const CURLMultiHandle&) = delete;
-
         CURLMultiHandle(CURLMultiHandle&&);
         CURLMultiHandle& operator=(CURLMultiHandle&&);
 
@@ -200,7 +168,6 @@ namespace mamba
         response_type pop_message();
         std::size_t get_timeout(std::size_t max_timeout = 1000u) const;
         std::size_t wait(std::size_t timeout);
-        std::size_t poll(std::size_t timeout);
 
     private:
 

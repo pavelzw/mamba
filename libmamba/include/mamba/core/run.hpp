@@ -14,8 +14,6 @@
 
 namespace mamba
 {
-    class Context;
-
     bool is_process_name_running(const std::string& name);
     std::string generate_unique_process_name(std::string_view program_name);
     const fs::u8path& proc_dir();
@@ -29,7 +27,6 @@ namespace mamba
     public:
 
         ScopedProcFile(
-            const Context& context,
             const std::string& name,
             const std::vector<std::string>& command,
             LockFile proc_dir_lock = lock_proc_dir()
@@ -46,7 +43,6 @@ namespace mamba
     };
 
     int run_in_environment(
-        const Context& context,
         const fs::u8path& prefix,
         std::vector<std::string> command,
         const std::string& cwd,

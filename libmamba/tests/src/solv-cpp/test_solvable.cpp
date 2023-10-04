@@ -12,7 +12,7 @@
 
 using namespace mamba::solv;
 
-TEST_SUITE("solv::ObjSolvable")
+TEST_SUITE("ObjSolvable")
 {
     TEST_CASE("Create a solvable")
     {
@@ -51,7 +51,6 @@ TEST_SUITE("solv::ObjSolvable")
             solv.set_url("https://conda.anaconda.org/conda-forge/linux-64");
             solv.set_channel("conda-forge");
             solv.set_subdir("linux-64");
-            solv.set_artificial(true);
 
             SUBCASE("Empty without internalize")
             {
@@ -67,7 +66,6 @@ TEST_SUITE("solv::ObjSolvable")
                 CHECK_EQ(solv.url(), "");
                 CHECK_EQ(solv.channel(), "");
                 CHECK_EQ(solv.subdir(), "");
-                CHECK_EQ(solv.artificial(), false);
             }
 
             SUBCASE("Internalize and get attributes")
@@ -90,7 +88,6 @@ TEST_SUITE("solv::ObjSolvable")
                 CHECK_EQ(solv.url(), "https://conda.anaconda.org/conda-forge/linux-64");
                 CHECK_EQ(solv.channel(), "conda-forge");
                 CHECK_EQ(solv.subdir(), "linux-64");
-                CHECK_EQ(solv.artificial(), true);
 
                 SUBCASE("Override attribute")
                 {
@@ -118,7 +115,6 @@ TEST_SUITE("solv::ObjSolvable")
             CHECK_EQ(solv.url(), "");
             CHECK_EQ(solv.channel(), "");
             CHECK_EQ(solv.subdir(), "");
-            CHECK_EQ(solv.artificial(), false);
         }
 
         SUBCASE("Add dependency")

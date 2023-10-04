@@ -10,8 +10,6 @@
 
 #include <doctest/doctest.h>
 
-#include "mambatests.hpp"
-
 #ifndef _WIN32
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -19,7 +17,6 @@
 #endif
 
 #include "mamba/core/channel.hpp"
-#include "mamba/core/context.hpp"
 #include "mamba/core/history.hpp"
 
 #include "test_data.hpp"
@@ -52,7 +49,7 @@ namespace mamba
                 }
             } scoped_history_file_backup;
 
-            ChannelContext channel_context{ mambatests::context() };
+            ChannelContext channel_context;
 
             // Gather history from current history file.
             History history_instance(test_data_dir / "history/parse", channel_context);
@@ -96,7 +93,7 @@ namespace mamba
         TEST_CASE("parse_segfault")
         {
             pid_t child = fork();
-            ChannelContext channel_context{ mambatests::context() };
+            ChannelContext channel_context;
             if (child)
             {
                 int wstatus;

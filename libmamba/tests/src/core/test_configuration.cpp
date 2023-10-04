@@ -11,7 +11,6 @@
 #include "mamba/core/util.hpp"
 #include "mamba/util/string.hpp"
 
-#include "mambatests.hpp"
 #include "test_data.hpp"
 
 namespace mamba
@@ -37,7 +36,7 @@ namespace mamba
             {
                 m_channel_alias_bu = ctx.channel_alias;
                 m_ssl_verify = ctx.remote_fetch_params.ssl_verify;
-                m_proxy_servers = ctx.remote_fetch_params.proxy_servers;
+                m_proxy_servers = ctx.proxy_servers;
             }
 
             ~Configuration()
@@ -45,7 +44,7 @@ namespace mamba
                 config.reset_configurables();
                 ctx.channel_alias = m_channel_alias_bu;
                 ctx.remote_fetch_params.ssl_verify = m_ssl_verify;
-                ctx.remote_fetch_params.proxy_servers = m_proxy_servers;
+                ctx.proxy_servers = m_proxy_servers;
             }
 
         protected:
@@ -96,9 +95,9 @@ namespace mamba
                 ".yaml"
             );
 
+            mamba::Context& ctx = mamba::Context::instance();
 
-            mamba::Context& ctx = mambatests::context();
-            mamba::Configuration config{ ctx };
+            mamba::Configuration config;
 
         private:
 
@@ -725,7 +724,7 @@ namespace mamba
                 std::map<std::string, std::string> expected = { { "http", "foo" },
                                                                 { "https", "bar" } };
                 CHECK_EQ(actual, expected);
-                CHECK_EQ(ctx.remote_fetch_params.proxy_servers, expected);
+                CHECK_EQ(ctx.proxy_servers, expected);
 
                 CHECK_EQ(config.sources().size(), 1);
                 CHECK_EQ(config.valid_sources().size(), 1);
@@ -839,20 +838,23 @@ namespace mamba
                 load_test_config({ rc1, rc2, rc3 });
                 CHECK_EQ(
                     config.at("channel_priority").value<ChannelPriority>(),
-                    ChannelPriority::Flexible
+                    ChannelPriority::kFlexible
                 );
-                CHECK(ctx.channel_priority == ChannelPriority::Flexible);
+                CHECK(ctx.channel_priority == ChannelPriority::kFlexible);
 
                 load_test_config({ rc3, rc1, rc2 });
                 CHECK_EQ(
                     config.at("channel_priority").value<ChannelPriority>(),
-                    ChannelPriority::Disabled
+                    ChannelPriority::kDisabled
                 );
-                CHECK(ctx.channel_priority == ChannelPriority::Disabled);
+                CHECK(ctx.channel_priority == ChannelPriority::kDisabled);
 
                 load_test_config({ rc2, rc1, rc3 });
-                CHECK_EQ(config.at("channel_priority").value<ChannelPriority>(), ChannelPriority::Strict);
-                CHECK(ctx.channel_priority == ChannelPriority::Strict);
+                CHECK_EQ(
+                    config.at("channel_priority").value<ChannelPriority>(),
+                    ChannelPriority::kStrict
+                );
+                CHECK(ctx.channel_priority == ChannelPriority::kStrict);
 
                 env::set("MAMBA_CHANNEL_PRIORITY", "strict");
                 load_test_config(rc3);
@@ -865,8 +867,11 @@ namespace mamba
                     config.dump(MAMBA_SHOW_CONFIG_VALUES | MAMBA_SHOW_CONFIG_SRCS),
                     "channel_priority: strict  # 'MAMBA_CHANNEL_PRIORITY' > '" + src + "'"
                 );
-                CHECK_EQ(config.at("channel_priority").value<ChannelPriority>(), ChannelPriority::Strict);
-                CHECK_EQ(ctx.channel_priority, ChannelPriority::Strict);
+                CHECK_EQ(
+                    config.at("channel_priority").value<ChannelPriority>(),
+                    ChannelPriority::kStrict
+                );
+                CHECK_EQ(ctx.channel_priority, ChannelPriority::kStrict);
 
                 config.at("channel_priority").set_yaml_value("flexible").compute();
                 CHECK_EQ(
@@ -875,9 +880,9 @@ namespace mamba
                 );
                 CHECK_EQ(
                     config.at("channel_priority").value<ChannelPriority>(),
-                    ChannelPriority::Flexible
+                    ChannelPriority::kFlexible
                 );
-                CHECK_EQ(ctx.channel_priority, ChannelPriority::Flexible);
+                CHECK_EQ(ctx.channel_priority, ChannelPriority::kFlexible);
 
                 env::set("MAMBA_CHANNEL_PRIORITY", "stric");
                 REQUIRE_THROWS_AS(load_test_config(rc3), YAML::Exception);
@@ -1006,20 +1011,20 @@ namespace mamba
                 load_test_config({ rc1, rc2, rc3 });
                 CHECK_EQ(
                     config.at("safety_checks").value<VerificationLevel>(),
-                    VerificationLevel::Enabled
+                    VerificationLevel::kEnabled
                 );
-                CHECK_EQ(ctx.validation_params.safety_checks, VerificationLevel::Enabled);
+                CHECK_EQ(ctx.safety_checks, VerificationLevel::kEnabled);
 
                 load_test_config({ rc2, rc1, rc3 });
-                CHECK_EQ(config.at("safety_checks").value<VerificationLevel>(), VerificationLevel::Warn);
-                CHECK_EQ(ctx.validation_params.safety_checks, VerificationLevel::Warn);
+                CHECK_EQ(config.at("safety_checks").value<VerificationLevel>(), VerificationLevel::kWarn);
+                CHECK_EQ(ctx.safety_checks, VerificationLevel::kWarn);
 
                 load_test_config({ rc3, rc1, rc3 });
                 CHECK_EQ(
                     config.at("safety_checks").value<VerificationLevel>(),
-                    VerificationLevel::Disabled
+                    VerificationLevel::kDisabled
                 );
-                CHECK_EQ(ctx.validation_params.safety_checks, VerificationLevel::Disabled);
+                CHECK_EQ(ctx.safety_checks, VerificationLevel::kDisabled);
 
                 env::set("MAMBA_SAFETY_CHECKS", "warn");
                 load_test_config(rc1);
@@ -1032,8 +1037,8 @@ namespace mamba
                     config.dump(MAMBA_SHOW_CONFIG_VALUES | MAMBA_SHOW_CONFIG_SRCS),
                     "safety_checks: warn  # 'MAMBA_SAFETY_CHECKS' > '" + src + "'"
                 );
-                CHECK_EQ(config.at("safety_checks").value<VerificationLevel>(), VerificationLevel::Warn);
-                CHECK_EQ(ctx.validation_params.safety_checks, VerificationLevel::Warn);
+                CHECK_EQ(config.at("safety_checks").value<VerificationLevel>(), VerificationLevel::kWarn);
+                CHECK_EQ(ctx.safety_checks, VerificationLevel::kWarn);
 
                 config.at("safety_checks").set_yaml_value("disabled").compute();
                 CHECK_EQ(
@@ -1042,9 +1047,9 @@ namespace mamba
                 );
                 CHECK_EQ(
                     config.at("safety_checks").value<VerificationLevel>(),
-                    VerificationLevel::Disabled
+                    VerificationLevel::kDisabled
                 );
-                CHECK_EQ(ctx.validation_params.safety_checks, VerificationLevel::Disabled);
+                CHECK_EQ(ctx.safety_checks, VerificationLevel::kDisabled);
 
                 env::set("MAMBA_SAFETY_CHECKS", "yeap");
                 REQUIRE_THROWS_AS(load_test_config(rc2), std::runtime_error);
@@ -1053,7 +1058,7 @@ namespace mamba
                 load_test_config(rc2);
             }
 
-            TEST_BOOL_CONFIGURABLE(extra_safety_checks, ctx.validation_params.extra_safety_checks);
+            TEST_BOOL_CONFIGURABLE(extra_safety_checks, ctx.extra_safety_checks);
 
 #undef TEST_BOOL_CONFIGURABLE
 

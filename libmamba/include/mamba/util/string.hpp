@@ -82,8 +82,6 @@ namespace mamba::util
     bool ends_with(std::string_view str, std::string_view::value_type c);
 
     bool contains(std::string_view str, std::string_view sub_str);
-    bool contains(std::string_view str, char c);
-    bool contains(char c1, char c2);
 
     /**
      * Check if any of the strings starts with the prefix.
@@ -100,18 +98,6 @@ namespace mamba::util
     bool starts_with_any(std::string_view str, const StrRange& prefix);
     template <typename StrRange>
     bool starts_with_any(std::wstring_view str, const StrRange& prefix);
-
-    /**
-     * Return a view to the input without the prefix if present.
-     */
-    std::string_view remove_prefix(std::string_view str, std::string_view prefix);
-    std::string_view remove_prefix(std::string_view str, std::string_view::value_type c);
-
-    /**
-     * Return a view to the input without the suffix if present.
-     */
-    std::string_view remove_suffix(std::string_view str, std::string_view suffix);
-    std::string_view remove_suffix(std::string_view str, std::string_view::value_type c);
 
     std::string_view lstrip(std::string_view input, char c);
     std::wstring_view lstrip(std::wstring_view input, wchar_t c);

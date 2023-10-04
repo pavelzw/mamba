@@ -8,7 +8,6 @@
 #include "mamba/api/shell.hpp"
 #include "mamba/core/run.hpp"
 #include "mamba/core/shell_init.hpp"
-#include "mamba/util/build.hpp"
 
 #include "common_options.hpp"
 #include "umamba.hpp"
@@ -31,7 +30,7 @@ namespace
         subcmd
             ->add_option("-s,--shell", shell_type.get_cli_config<std::string>(), shell_type.description())
             ->check(CLI::IsMember(std::set<std::string>(
-                { "bash", "posix", "powershell", "cmd.exe", "xonsh", "zsh", "fish", "tcsh", "dash", "nu" }
+                { "bash", "posix", "powershell", "cmd.exe", "xonsh", "zsh", "fish", "tcsh", "dash" }
             )));
     }
 
@@ -166,13 +165,11 @@ namespace
         subsubcmd->callback(
             [&config]()
             {
-                auto& context = config.context();
                 set_default_config_options(config);
                 config.load();
                 shell_init(
-                    context,
                     consolidate_shell(config.at("shell_type").compute().value<std::string>()),
-                    context.prefix_params.root_prefix
+                    Context::instance().prefix_params.root_prefix
                 );
                 config.operation_teardown();
             }
@@ -187,13 +184,11 @@ namespace
         subsubcmd->callback(
             [&config]()
             {
-                auto& context = config.context();
                 set_default_config_options(config);
                 config.load();
                 shell_deinit(
-                    context,
                     consolidate_shell(config.at("shell_type").compute().value<std::string>()),
-                    context.prefix_params.root_prefix
+                    Context::instance().prefix_params.root_prefix
                 );
                 config.operation_teardown();
             }
@@ -203,13 +198,13 @@ namespace
     void set_shell_reinit_command(CLI::App* subsubcmd, Configuration& config)
     {
         init_general_options(subsubcmd, config);
+        init_shell_option(subsubcmd, config);
         subsubcmd->callback(
             [&config]()
             {
-                auto& context = config.context();
                 set_default_config_options(config);
                 config.load();
-                shell_reinit(context, context.prefix_params.root_prefix);
+                shell_reinit(Context::instance().prefix_params.root_prefix);
                 config.operation_teardown();
             }
         );
@@ -223,13 +218,9 @@ namespace
         subsubcmd->callback(
             [&config]()
             {
-                auto& context = config.context();
                 set_default_config_options(config);
                 config.load();
-                shell_hook(
-                    context,
-                    consolidate_shell(config.at("shell_type").compute().value<std::string>())
-                );
+                shell_hook(consolidate_shell(config.at("shell_type").compute().value<std::string>()));
                 config.operation_teardown();
             }
         );
@@ -245,13 +236,11 @@ namespace
         subsubcmd->callback(
             [&config]()
             {
-                auto& context = config.context();
                 set_default_config_options(config);
                 consolidate_prefix_options(config);
                 config.load();
                 shell_activate(
-                    context,
-                    context.prefix_params.target_prefix,
+                    Context::instance().prefix_params.target_prefix,
                     consolidate_shell(config.at("shell_type").compute().value<std::string>()),
                     config.at("shell_stack").compute().value<bool>()
                 );
@@ -267,11 +256,9 @@ namespace
         subsubcmd->callback(
             [&config]()
             {
-                auto& context = config.context();
                 set_default_config_options(config);
                 config.load();
                 shell_reactivate(
-                    context,
                     consolidate_shell(config.at("shell_type").compute().value<std::string>())
                 );
                 config.operation_teardown();
@@ -286,10 +273,9 @@ namespace
         subsubcmd->callback(
             [&config]()
             {
-                auto& context = config.context();
                 set_default_config_options(config);
                 config.load();
-                shell_deactivate(context, config.at("shell_type").compute().value<std::string>());
+                shell_deactivate(config.at("shell_type").compute().value<std::string>());
                 config.operation_teardown();
             }
         );
@@ -303,7 +289,7 @@ namespace
             {
                 set_default_config_options(config);
                 config.load();
-                shell_enable_long_path_support(config.context().graphics_params.palette);
+                shell_enable_long_path_support();
                 config.operation_teardown();
             }
         );
@@ -341,11 +327,11 @@ namespace
 
                     auto const get_shell = []() -> std::string
                     {
-                        if constexpr (util::on_win)
+                        if constexpr (on_win)
                         {
                             return env::get("SHELL").value_or("cmd.exe");
                         }
-                        else if constexpr (util::on_mac)
+                        else if constexpr (on_mac)
                         {
                             return env::get("SHELL").value_or("zsh");
                         }
@@ -353,8 +339,7 @@ namespace
                     };
 
                     exit(mamba::run_in_environment(
-                        config.context(),
-                        config.context().prefix_params.target_prefix,
+                        Context::instance().prefix_params.target_prefix,
                         { get_shell() },
                         ".",
                         static_cast<int>(STREAM_OPTIONS::ALL_STREAMS),

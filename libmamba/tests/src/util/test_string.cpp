@@ -16,7 +16,7 @@
 
 namespace mamba::util
 {
-    TEST_SUITE("util::string")
+    TEST_SUITE("util_string")
     {
         TEST_CASE("to_lower")
         {
@@ -62,46 +62,14 @@ namespace mamba::util
 
         TEST_CASE("contains")
         {
-            CHECK(contains('c', 'c'));
-            CHECK_FALSE(contains('c', 'a'));
             CHECK(contains(":hello&", ""));
-            CHECK(contains(":hello&", '&'));
-            CHECK(contains(":hello&", ':'));
+            CHECK(contains(":hello&", "&"));
+            CHECK(contains(":hello&", ":"));
             CHECK(contains(":hello&", "ll"));
             CHECK_FALSE(contains(":hello&", "eo"));
             CHECK(contains("áäáœ©gþhëb®hüghœ©®xb", "ëb®"));
             CHECK_FALSE(contains("", "ab"));
             CHECK(contains("", ""));  // same as Python ``"" in ""``
-        }
-
-        TEST_CASE("remove_prefix")
-        {
-            CHECK_EQ(remove_prefix("", ""), "");
-            CHECK_EQ(remove_prefix("hello", ""), "hello");
-            CHECK_EQ(remove_prefix("hello", "hello"), "");
-            CHECK_EQ(remove_prefix("", "hello"), "");
-            CHECK_EQ(remove_prefix("https://localhost", "https://"), "localhost");
-            CHECK_EQ(remove_prefix("https://localhost", "http://"), "https://localhost");
-            CHECK_EQ(remove_prefix("aabb", "a"), "abb");
-            CHECK_EQ(remove_prefix("", 'a'), "");
-            CHECK_EQ(remove_prefix("a", 'a'), "");
-            CHECK_EQ(remove_prefix("aaa", 'a'), "aa");
-            CHECK_EQ(remove_prefix("aabb", 'b'), "aabb");
-        }
-
-        TEST_CASE("remove_suffix")
-        {
-            CHECK_EQ(remove_suffix("", ""), "");
-            CHECK_EQ(remove_suffix("hello", ""), "hello");
-            CHECK_EQ(remove_suffix("hello", "hello"), "");
-            CHECK_EQ(remove_suffix("", "hello"), "");
-            CHECK_EQ(remove_suffix("localhost:8080", ":8080"), "localhost");
-            CHECK_EQ(remove_suffix("localhost:8080", ":80"), "localhost:8080");
-            CHECK_EQ(remove_suffix("aabb", "b"), "aab");
-            CHECK_EQ(remove_suffix("", 'b'), "");
-            CHECK_EQ(remove_suffix("b", 'b'), "");
-            CHECK_EQ(remove_suffix("bbb", 'b'), "bb");
-            CHECK_EQ(remove_suffix("aabb", 'a'), "aabb");
         }
 
         TEST_CASE("any_starts_with")

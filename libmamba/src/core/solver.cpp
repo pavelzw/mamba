@@ -15,7 +15,6 @@
 
 #include "mamba/core/channel.hpp"
 #include "mamba/core/context.hpp"
-#include "mamba/core/error_handling.hpp"
 #include "mamba/core/match_spec.hpp"
 #include "mamba/core/output.hpp"
 #include "mamba/core/package_info.hpp"
@@ -127,11 +126,6 @@ namespace mamba
             MatchSpec ms{ job, m_pool.channel_context() };
             int job_type = job_flag & SOLVER_JOBMASK;
 
-            if (ms.conda_build_form().empty())
-            {
-                return;
-            }
-
             if (job_type & SOLVER_INSTALL)
             {
                 m_install_specs.emplace_back(job, m_pool.channel_context());
@@ -232,20 +226,13 @@ namespace mamba
         // Solvable need to provide itself
         cons_solv.add_self_provide();
 
-        // Even if we lock it, libsolv may still try to remove it with
-        // `SOLVER_FLAG_ALLOW_UNINSTALL`, so we flag it as not a real package to filter it out in
-        // the transaction
-        cons_solv.set_artificial(true);
-
         // Necessary for attributes to be properly stored
         installed->internalize();
 
-        // WARNING keep separate or libsolv does not understand
+        // Lock the dummy solvable so that it stays install.
         // Force verify the dummy solvable dependencies, as this is not the default for
         // installed packages.
-        add_jobs({ cons_solv_name }, SOLVER_VERIFY);
-        // Lock the dummy solvable so that it stays install.
-        add_jobs({ cons_solv_name }, SOLVER_LOCK);
+        return add_jobs({ cons_solv_name }, SOLVER_LOCK & SOLVER_VERIFY);
     }
 
     void MSolver::add_pins(const std::vector<std::string>& pins)
@@ -439,7 +426,7 @@ namespace mamba
 
     std::ostream& MSolver::explain_problems(std::ostream& out) const
     {
-        const auto& ctx = m_pool.context();
+        const auto& ctx = Context::instance();
         out << "Could not solve for environment specs\n";
         const auto pbs = problems_graph();
         const auto pbs_simplified = simplify_conflicts(pbs);

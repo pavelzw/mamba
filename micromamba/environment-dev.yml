@@ -14,8 +14,8 @@ dependencies:
   - gtest
   - gmock
   - cpp-expected
-  - reproc-cpp >=14.2.4.post0
-  - yaml-cpp >=0.8.0
+  - reproc-cpp
+  - yaml-cpp
   - cli11 >=2.2
   - pytest >=7.3.0
   - pytest-asyncio

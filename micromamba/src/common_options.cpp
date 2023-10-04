@@ -202,9 +202,9 @@ init_channel_parser(CLI::App* subcom, Configuration& config)
         override_channels.description()
     );
 
-    std::map<std::string, ChannelPriority> cp_map = { { "disabled", ChannelPriority::Disabled },
-                                                      { "flexible", ChannelPriority::Flexible },
-                                                      { "strict", ChannelPriority::Strict } };
+    std::map<std::string, ChannelPriority> cp_map = { { "disabled", ChannelPriority::kDisabled },
+                                                      { "flexible", ChannelPriority::kFlexible },
+                                                      { "strict", ChannelPriority::kStrict } };
     auto& channel_priority = config.at("channel_priority");
     subcom
         ->add_option(
@@ -288,7 +288,7 @@ strict_channel_priority_hook(Configuration& config, bool&)
     if (strict_channel_priority.configured())
     {
         if ((channel_priority.cli_configured() || channel_priority.env_var_configured())
-            && (channel_priority.cli_value<ChannelPriority>() != ChannelPriority::Strict))
+            && (channel_priority.cli_value<ChannelPriority>() != ChannelPriority::kStrict))
         {
             throw std::runtime_error("Cannot set both 'strict_channel_priority' and 'channel_priority'."
             );
@@ -302,7 +302,7 @@ strict_channel_priority_hook(Configuration& config, bool&)
                 );
             }
             // Override 'channel_priority' CLI value
-            channel_priority.set_cli_value(ChannelPriority::Strict);
+            channel_priority.set_cli_value(ChannelPriority::kStrict);
         }
     }
 }
@@ -317,7 +317,7 @@ no_channel_priority_hook(Configuration& config, bool&)
     if (no_channel_priority.configured())
     {
         if ((channel_priority.cli_configured() || channel_priority.env_var_configured())
-            && (channel_priority.cli_value<ChannelPriority>() != ChannelPriority::Disabled))
+            && (channel_priority.cli_value<ChannelPriority>() != ChannelPriority::kDisabled))
         {
             throw std::runtime_error("Cannot set both 'no_channel_priority' and 'channel_priority'.");
         }
@@ -330,7 +330,7 @@ no_channel_priority_hook(Configuration& config, bool&)
                 );
             }
             // Override 'channel_priority' CLI value
-            channel_priority.set_cli_value(ChannelPriority::Disabled);
+            channel_priority.set_cli_value(ChannelPriority::kDisabled);
         }
     }
 }
@@ -422,9 +422,9 @@ init_install_options(CLI::App* subcom, Configuration& config)
         shortcuts.description()
     );
 
-    std::map<std::string, VerificationLevel> vl_map = { { "enabled", VerificationLevel::Enabled },
-                                                        { "warn", VerificationLevel::Warn },
-                                                        { "disabled", VerificationLevel::Disabled } };
+    std::map<std::string, VerificationLevel> vl_map = { { "enabled", VerificationLevel::kEnabled },
+                                                        { "warn", VerificationLevel::kWarn },
+                                                        { "disabled", VerificationLevel::kDisabled } };
     auto& safety_checks = config.at("safety_checks");
     subcom
         ->add_option(

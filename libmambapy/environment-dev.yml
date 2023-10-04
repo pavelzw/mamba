@@ -13,12 +13,12 @@ dependencies:
   - gtest
   - gmock
   - cpp-expected
-  - reproc-cpp >=14.2.4.post0
-  - yaml-cpp >=0.8.0
+  - reproc-cpp
+  - yaml-cpp
   - cli11 >=2.2
   - spdlog
   - fmt
   - pybind11
-  - pybind11-stubgen <1.0
+  - pybind11-stubgen
   - pytest >=7.3
   - sel(win): winreg

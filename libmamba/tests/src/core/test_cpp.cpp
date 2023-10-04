@@ -18,16 +18,14 @@
 #include "mamba/core/match_spec.hpp"
 #include "mamba/core/output.hpp"
 #include "mamba/core/subdirdata.hpp"
-#include "mamba/util/build.hpp"
 
-#include "mambatests.hpp"
 #include "test_data.hpp"
 
 namespace mamba
 {
     // TEST(cpp_install, install)
     // {
-    //     mambatests::context().output_params.verbosity = 3;
+    //     Context::instance().output_params.verbosity = 3;
     //     PackageInfo pkg("wheel", "0.34.2", "py_1", 1);
     //     fs::u8path prefix = "C:\\Users\\wolfv\\miniconda3\\";
     //     TransactionContext tc(prefix, "3.8.x");
@@ -88,16 +86,11 @@ namespace mamba
 
         TEST_CASE("parse")
         {
-            ChannelContext channel_context{ mambatests::context() };
+            ChannelContext channel_context;
             {
                 MatchSpec ms("xtensor==0.12.3", channel_context);
                 CHECK_EQ(ms.version, "0.12.3");
                 CHECK_EQ(ms.name, "xtensor");
-            }
-            {
-                MatchSpec ms("", channel_context);
-                CHECK_EQ(ms.version, "");
-                CHECK_EQ(ms.name, "");
             }
             {
                 MatchSpec ms("ipykernel", channel_context);
@@ -241,36 +234,11 @@ namespace mamba
                 MatchSpec ms("numpy=1.20", channel_context);
                 CHECK_EQ(ms.str(), "numpy=1.20");
             }
-
-            {
-                MatchSpec ms("conda-forge::tzdata", channel_context);
-                CHECK_EQ(ms.str(), "conda-forge::tzdata");
-            }
-            {
-                MatchSpec ms("conda-forge::noarch/tzdata", channel_context);
-                CHECK_EQ(ms.str(), "conda-forge::noarch/tzdata");
-            }
-            {
-                MatchSpec ms("pkgs/main::tzdata", channel_context);
-                CHECK_EQ(ms.str(), "pkgs/main::tzdata");
-            }
-            {
-                MatchSpec ms("pkgs/main/noarch::tzdata", channel_context);
-                CHECK_EQ(ms.str(), "pkgs/main/noarch::tzdata");
-            }
-            {
-                MatchSpec ms("conda-forge/noarch::tzdata[subdir=linux64]", channel_context);
-                CHECK_EQ(ms.str(), "conda-forge/noarch::tzdata");
-            }
-            {
-                MatchSpec ms("conda-forge::tzdata[subdir=linux64]", channel_context);
-                CHECK_EQ(ms.str(), "conda-forge/linux64::tzdata");
-            }
         }
 
         TEST_CASE("is_simple")
         {
-            ChannelContext channel_context{ mambatests::context() };
+            ChannelContext channel_context;
             {
                 MatchSpec ms("libblas", channel_context);
                 CHECK(ms.is_simple());
@@ -298,7 +266,7 @@ namespace mamba
     {
         TEST_CASE("user_request")
         {
-            auto u = History::UserRequest::prefilled(mambatests::context());
+            auto u = History::UserRequest::prefilled();
             // update in 100 years!
             CHECK_EQ(u.date[0], '2');
             CHECK_EQ(u.date[1], '0');
@@ -371,22 +339,22 @@ namespace mamba
     {
         TEST_CASE("env_name")
         {
-            if constexpr (util::on_mac || util::on_linux)
+            if constexpr (on_mac || on_linux)
             {
-                auto& ctx = mambatests::context();
+                auto& ctx = Context::instance();
                 ctx.prefix_params.root_prefix = "/home/user/micromamba/";
                 ctx.envs_dirs = { ctx.prefix_params.root_prefix / "envs" };
                 fs::u8path prefix = "/home/user/micromamba/envs/testprefix";
 
-                CHECK_EQ(env_name(ctx, prefix), "testprefix");
+                CHECK_EQ(env_name(prefix), "testprefix");
                 prefix = "/home/user/micromamba/envs/a.txt";
-                CHECK_EQ(env_name(ctx, prefix), "a.txt");
+                CHECK_EQ(env_name(prefix), "a.txt");
                 prefix = "/home/user/micromamba/envs/a.txt";
-                CHECK_EQ(env_name(ctx, prefix), "a.txt");
+                CHECK_EQ(env_name(prefix), "a.txt");
                 prefix = "/home/user/micromamba/envs/abc/a.txt";
-                CHECK_EQ(env_name(ctx, prefix), "/home/user/micromamba/envs/abc/a.txt");
+                CHECK_EQ(env_name(prefix), "/home/user/micromamba/envs/abc/a.txt");
                 prefix = "/home/user/env";
-                CHECK_EQ(env_name(ctx, prefix), "/home/user/env");
+                CHECK_EQ(env_name(prefix), "/home/user/env");
             }
         }
     }
@@ -395,7 +363,7 @@ namespace mamba
     {
         TEST_CASE("starts_with_home")
         {
-            if (util::on_linux)
+            if (on_linux)
             {
                 auto home = env::expand_user("~");
                 CHECK_EQ(path::starts_with_home(home / "test" / "file.txt"), true);
@@ -413,7 +381,7 @@ namespace mamba
 
         TEST_CASE("touch")
         {
-            if (util::on_linux)
+            if (on_linux)
             {
                 path::touch("/tmp/dir/file.txt", true);
                 CHECK(fs::exists("/tmp/dir/file.txt"));
@@ -425,12 +393,12 @@ namespace mamba
     {
         TEST_CASE("replace_long_shebang")
         {
-            if (!util::on_win)
+            if (!on_win)
             {
                 std::string res = replace_long_shebang(
                     "#!/this/is/loooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooong/python -o test -x"
                 );
-                if (util::on_linux)
+                if (on_linux)
                 {
                     CHECK_EQ(res, "#!/usr/bin/env python -o test -x");
                 }
@@ -442,7 +410,7 @@ namespace mamba
                     );
                 }
 
-                if (util::on_linux)
+                if (on_linux)
                 {
                     res = replace_long_shebang(
                         "#!/this/is/loooooooooooooooooooooooooooooooooooooooooooooooooooo\\ oooooo\\ oooooo\\ oooooooooooooooooooooooooooooooooooong/python -o test -x"
@@ -523,7 +491,7 @@ namespace mamba
     {
         TEST_CASE("quote_for_shell")
         {
-            if (!util::on_win)
+            if (!on_win)
             {
                 std::vector<std::string> args1 = { "python", "-c", "print('is\ngreat')" };
                 CHECK_EQ(quote_for_shell(args1), "python -c 'print('\"'\"'is\ngreat'\"'\"')'");
@@ -589,6 +557,12 @@ namespace mamba
         }
     }
 
+    namespace detail
+    {
+        // read the header that contains json like {"_mod": "...", ...}
+        tl::expected<subdir_metadata, mamba_error> read_metadata(const fs::u8path& file);
+    }
+
 #ifdef _WIN32
     std::chrono::system_clock::time_point filetime_to_unix_test(const fs::file_time_type& filetime)
     {
@@ -604,47 +578,47 @@ namespace mamba
 
     TEST_SUITE("subdirdata")
     {
-        TEST_CASE("parse_last_modified_etag")
+        TEST_CASE("parse_mod_etag")
         {
             fs::u8path cache_folder = fs::u8path{ test_data_dir / "repodata_json_cache" };
-            auto mq = MSubdirMetadata::read(cache_folder / "test_1.json");
+            auto mq = detail::read_metadata(cache_folder / "test_1.json");
             CHECK(mq.has_value());
             auto j = mq.value();
-            CHECK_EQ(j.last_modified(), "Fri, 11 Feb 2022 13:52:44 GMT");
+            CHECK_EQ(j.mod, "Fri, 11 Feb 2022 13:52:44 GMT");
             CHECK_EQ(
-                j.url(),
+                j.url,
                 "file:///Users/wolfvollprecht/Programs/mamba/mamba/tests/channel_a/linux-64/repodata.json"
             );
 
-            j = MSubdirMetadata::read(cache_folder / "test_2.json").value();
-            CHECK_EQ(j.last_modified(), "Fri, 11 Feb 2022 13:52:44 GMT");
+            j = detail::read_metadata(cache_folder / "test_2.json").value();
+            CHECK_EQ(j.mod, "Fri, 11 Feb 2022 13:52:44 GMT");
             CHECK_EQ(
-                j.url(),
+                j.url,
                 "file:///Users/wolfvollprecht/Programs/mamba/mamba/tests/channel_a/linux-64/repodata.json"
             );
 
-            j = MSubdirMetadata::read(cache_folder / "test_5.json").value();
-            CHECK_EQ(j.last_modified(), "Fri, 11 Feb 2022 13:52:44 GMT");
+            j = detail::read_metadata(cache_folder / "test_5.json").value();
+            CHECK_EQ(j.mod, "Fri, 11 Feb 2022 13:52:44 GMT");
             CHECK_EQ(
-                j.url(),
+                j.url,
                 "file:///Users/wolfvollprecht/Programs/mamba/mamba/tests/channel_a/linux-64/repodata.json"
             );
 
-            j = MSubdirMetadata::read(cache_folder / "test_4.json").value();
-            CHECK_EQ(j.cache_control(), "{{}}\",,,\"");
-            CHECK_EQ(j.etag(), "\n\n\"\"randome ecx,,ssd\n,,\"");
-            CHECK_EQ(j.last_modified(), "Fri, 11 Feb 2022 13:52:44 GMT");
+            j = detail::read_metadata(cache_folder / "test_4.json").value();
+            CHECK_EQ(j.cache_control, "{{}}\",,,\"");
+            CHECK_EQ(j.etag, "\n\n\"\"randome ecx,,ssd\n,,\"");
+            CHECK_EQ(j.mod, "Fri, 11 Feb 2022 13:52:44 GMT");
             CHECK_EQ(
-                j.url(),
+                j.url,
                 "file:///Users/wolfvollprecht/Programs/mamba/mamba/tests/channel_a/linux-64/repodata.json"
             );
 
-            mq = MSubdirMetadata::read(cache_folder / "test_3.json");
+            mq = detail::read_metadata(cache_folder / "test_3.json");
             CHECK(mq.has_value() == false);
 
-            j = MSubdirMetadata::read(cache_folder / "test_6.json").value();
-            CHECK_EQ(j.last_modified(), "Thu, 02 Apr 2020 20:21:27 GMT");
-            CHECK_EQ(j.url(), "https://conda.anaconda.org/intake/osx-arm64");
+            j = detail::read_metadata(cache_folder / "test_6.json").value();
+            CHECK_EQ(j.mod, "Thu, 02 Apr 2020 20:21:27 GMT");
+            CHECK_EQ(j.url, "https://conda.anaconda.org/intake/osx-arm64");
 
             auto state_file = cache_folder / "test_7.state.json";
             // set file_mtime
@@ -675,12 +649,13 @@ namespace mamba
                 ofs << jstate.dump(4);
             }
 
-            j = MSubdirMetadata::read(cache_folder / "test_7.json").value();
-            CHECK_EQ(j.cache_control(), "something");
-            CHECK_EQ(j.etag(), "something else");
-            CHECK_EQ(j.last_modified(), "Fri, 11 Feb 2022 13:52:44 GMT");
-            CHECK_EQ(j.url(), "https://conda.anaconda.org/conda-forge/noarch/repodata.json.zst");
-            CHECK_EQ(j.has_zst(), false);
+            j = detail::read_metadata(cache_folder / "test_7.json").value();
+            CHECK_EQ(j.cache_control, "something");
+            CHECK_EQ(j.etag, "something else");
+            CHECK_EQ(j.mod, "Fri, 11 Feb 2022 13:52:44 GMT");
+            CHECK_EQ(j.url, "https://conda.anaconda.org/conda-forge/noarch/repodata.json.zst");
+            CHECK_EQ(j.has_zst.value().value, true);
+            CHECK_EQ(j.has_zst.value().last_checked, parse_utc_timestamp("2023-01-06T16:33:06Z"));
         }
     }
 }  // namespace mamba

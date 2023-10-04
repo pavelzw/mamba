@@ -3,16 +3,8 @@
 
 namespace mamba
 {
-    void remove_menu_from_json(
-        const Context& context,
-        const fs::u8path& json_file,
-        TransactionContext* transaction_context
-    );
-    void create_menu_from_json(
-        const Context& context,
-        const fs::u8path& json_file,
-        TransactionContext* transaction_context
-    );
+    void remove_menu_from_json(const fs::u8path& json_file, TransactionContext* context);
+    void create_menu_from_json(const fs::u8path& json_file, TransactionContext* context);
 #ifdef _WIN32
     namespace win
     {

@@ -8,26 +8,16 @@
 #define MAMBA_CORE_CHANNEL_HPP
 
 #include <map>
-#include <memory>
 #include <optional>
 #include <string>
-#include <string_view>
 #include <utility>
 #include <vector>
 
-#include "mamba/specs/conda_url.hpp"
+#include "mamba/core/package_cache.hpp"
+#include "mamba/core/validate.hpp"
 
 namespace mamba
 {
-    class Context;
-    class MultiPackageCache;
-    namespace validation
-    {
-        class RepoChecker;
-    }
-
-    std::vector<std::string> get_known_platforms();
-
     // Note: Channels can only be created using ChannelContext.
     class Channel
     {
@@ -38,20 +28,15 @@ namespace mamba
         Channel(Channel&&) noexcept = default;
         Channel& operator=(Channel&&) noexcept = default;
 
-        ~Channel();
-
         const std::string& scheme() const;
         const std::string& location() const;
         const std::string& name() const;
         const std::string& canonical_name() const;
         const std::vector<std::string>& platforms() const;
-        std::optional<std::string> auth() const;
-        std::optional<std::string> user() const;
-        std::optional<std::string> password() const;
-        std::optional<std::string> token() const;
-        std::optional<std::string> package_filename() const;
-        const validation::RepoChecker&
-        repo_checker(Context& context, MultiPackageCache& caches) const;
+        const std::optional<std::string>& auth() const;
+        const std::optional<std::string>& token() const;
+        const std::optional<std::string>& package_filename() const;
+        const validation::RepoChecker& repo_checker(MultiPackageCache& caches) const;
 
         std::string base_url() const;
         std::string platform_url(std::string platform, bool with_credential = true) const;
@@ -63,31 +48,27 @@ namespace mamba
     private:
 
         Channel(
-            std::string_view scheme,
-            std::string location,
-            std::string name,
-            std::string canonical_name,
-            std::string_view user = {},
-            std::string_view password = {},
-            std::string_view token = {},
-            std::string_view package_filename = {}
+            const std::string& scheme,
+            const std::string& location,
+            const std::string& name,
+            const std::string& canonical_name,
+            const std::optional<std::string>& auth = {},
+            const std::optional<std::string>& token = {},
+            const std::optional<std::string>& package_filename = {}
         );
 
-        specs::CondaURL m_url;
+        std::string m_scheme;
         std::string m_location;
         std::string m_name;
         std::string m_canonical_name;
         std::vector<std::string> m_platforms;
+        std::optional<std::string> m_auth;
+        std::optional<std::string> m_token;
+        std::optional<std::string> m_package_filename;
 
         // This is used to make sure that there is a unique repo for every channel
         mutable std::unique_ptr<validation::RepoChecker> p_repo_checker;
 
-        // Note: as long as Channel is not a regular value-type and we want each
-        // instance only possible to create through ChannelContext, we need
-        // to have Channel's constructor only available to ChannelContext,
-        // therefore enabling it's use through this `friend` statement.
-        // However, all this should be removed as soon as Channel is changed to
-        // be a regular value-type (regular as in the regular concept).
         friend class ChannelContext;
     };
 
@@ -105,7 +86,7 @@ namespace mamba
         using channel_map = std::map<std::string, Channel>;
         using multichannel_map = std::map<std::string, std::vector<std::string>>;
 
-        ChannelContext(Context& context);
+        ChannelContext();
         ~ChannelContext();
 
         ChannelContext(const ChannelContext&) = delete;
@@ -119,19 +100,14 @@ namespace mamba
         const Channel& get_channel_alias() const;
         const channel_map& get_custom_channels() const;
 
-        Context& context() const
-        {
-            return m_context;
-        }
-
     private:
 
-        Context& m_context;
         ChannelCache m_channel_cache;
         Channel m_channel_alias;
         channel_map m_custom_channels;
         multichannel_map m_custom_multichannels;
 
+        Channel build_channel_alias();
         void init_custom_channels();
 
         const multichannel_map& get_custom_multichannels() const;
@@ -143,10 +119,15 @@ namespace mamba
             const std::string& channel_canonical_name
         );
 
-        Channel from_url(std::string_view url);
+        Channel from_url(const std::string& url);
         Channel from_name(const std::string& name);
         Channel from_value(const std::string& value);
-        Channel from_alias(std::string_view alias);
+        Channel from_alias(
+            const std::string& scheme,
+            const std::string& location,
+            const std::optional<std::string>& auth = {},
+            const std::optional<std::string>& token = {}
+        );
     };
 
 }  // namespace mamba

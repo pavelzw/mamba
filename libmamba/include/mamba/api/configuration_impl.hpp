@@ -200,15 +200,15 @@ namespace YAML
     {
         static Node encode(const mamba::VerificationLevel& rhs)
         {
-            if (rhs == mamba::VerificationLevel::Disabled)
+            if (rhs == mamba::VerificationLevel::kDisabled)
             {
                 return Node("disabled");
             }
-            else if (rhs == mamba::VerificationLevel::Warn)
+            else if (rhs == mamba::VerificationLevel::kWarn)
             {
                 return Node("warn");
             }
-            else if (rhs == mamba::VerificationLevel::Enabled)
+            else if (rhs == mamba::VerificationLevel::kEnabled)
             {
                 return Node("enabled");
             }
@@ -229,15 +229,15 @@ namespace YAML
 
             if (str == "enabled")
             {
-                rhs = mamba::VerificationLevel::Enabled;
+                rhs = mamba::VerificationLevel::kEnabled;
             }
             else if (str == "warn")
             {
-                rhs = mamba::VerificationLevel::Warn;
+                rhs = mamba::VerificationLevel::kWarn;
             }
             else if (str == "disabled")
             {
-                rhs = mamba::VerificationLevel::Disabled;
+                rhs = mamba::VerificationLevel::kDisabled;
             }
             else
             {
@@ -255,15 +255,15 @@ namespace YAML
     {
         static Node encode(const mamba::ChannelPriority& rhs)
         {
-            if (rhs == mamba::ChannelPriority::Strict)
+            if (rhs == mamba::ChannelPriority::kStrict)
             {
                 return Node("strict");
             }
-            else if (rhs == mamba::ChannelPriority::Flexible)
+            else if (rhs == mamba::ChannelPriority::kFlexible)
             {
                 return Node("flexible");
             }
-            else if (rhs == mamba::ChannelPriority::Disabled)
+            else if (rhs == mamba::ChannelPriority::kDisabled)
             {
                 return Node("disabled");
             }
@@ -284,15 +284,15 @@ namespace YAML
 
             if (str == "strict")
             {
-                rhs = mamba::ChannelPriority::Strict;
+                rhs = mamba::ChannelPriority::kStrict;
             }
             else if ((str == "flexible") || (str == "true"))
             {
-                rhs = mamba::ChannelPriority::Flexible;
+                rhs = mamba::ChannelPriority::kFlexible;
             }
             else if (str == "disabled")
             {
-                rhs = mamba::ChannelPriority::Disabled;
+                rhs = mamba::ChannelPriority::kDisabled;
             }
             else
             {

@@ -10,9 +10,9 @@
 
 #include "mamba/core/environment.hpp"
 #include "mamba/core/output.hpp"
+#include "mamba/core/url.hpp"
 #include "mamba/core/util.hpp"
 #include "mamba/util/string.hpp"
-#include "mamba/util/url.hpp"
 
 
 std::string
@@ -36,19 +36,22 @@ read_stdin()
 std::string
 get_token_base(const std::string& host)
 {
-    const auto url = mamba::util::URL::parse(host);
+    mamba::URLHandler url_handler(host);
 
     std::string maybe_colon_and_port{};
-    if (!url.port().empty())
+    if (!url_handler.port().empty())
     {
         maybe_colon_and_port.push_back(':');
-        maybe_colon_and_port.append(url.port());
+        maybe_colon_and_port.append(url_handler.port());
     }
-    return mamba::util::concat(
-        url.host(),
-        maybe_colon_and_port,
-        mamba::util::rstrip(url.pretty_path(), '/')
-    );
+    // Removing the trailing slashes
+    std::string maybe_path = url_handler.path();
+    while ((!maybe_path.empty()) && (maybe_path.back() == '/'))
+    {
+        maybe_path.pop_back();
+    }
+
+    return mamba::util::concat(url_handler.host(), maybe_colon_and_port, maybe_path);
 }
 
 void

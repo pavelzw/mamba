@@ -4,10 +4,12 @@
 //
 // The full license is in the file LICENSE, distributed with this software.
 
+#include <array>
+
 #include <doctest/doctest.h>
 
 #include "mamba/core/environment.hpp"
-#include "mamba/util/build.hpp"
+#include "mamba/core/util.hpp"
 #include "mamba/util/string.hpp"
 
 namespace mamba
@@ -28,7 +30,7 @@ namespace mamba
         TEST_CASE("expand_user")
         {
             auto expanded = env::expand_user("~/this/is/a/test");
-            if (util::on_linux)
+            if (on_linux)
             {
                 CHECK(util::starts_with(expanded.string(), "/home/"));
             }

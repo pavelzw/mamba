@@ -5,9 +5,7 @@
 // The full license is in the file LICENSE, distributed with this software.
 
 #include <iostream>
-#include <sstream>
 #include <stack>
-#include <unordered_set>
 
 #include <fmt/chrono.h>
 #include <fmt/color.h>
@@ -21,7 +19,7 @@
 #include "mamba/core/output.hpp"
 #include "mamba/core/package_info.hpp"
 #include "mamba/core/query.hpp"
-#include "mamba/specs/conda_url.hpp"
+#include "mamba/core/url.hpp"
 #include "mamba/util/string.hpp"
 #include "solv-cpp/queue.hpp"
 
@@ -158,29 +156,26 @@ namespace mamba
 
     namespace
     {
-
-        /**
-         * Prints metadata for a given package.
-         */
-        auto print_metadata(std::ostream& out, const PackageInfo& pkg)
+        auto print_solvable(const PackageInfo& pkg)
         {
+            auto out = Console::stream();
+            std::string header = fmt::format("{} {} {}", pkg.name, pkg.version, pkg.build_string);
+            fmt::print(out, "{:^40}\n{:-^{}}\n\n", header, "", header.size() > 40 ? header.size() : 40);
+
             static constexpr const char* fmtstring = " {:<15} {}\n";
+            fmt::print(out, fmtstring, "File Name", pkg.fn);
             fmt::print(out, fmtstring, "Name", pkg.name);
             fmt::print(out, fmtstring, "Version", pkg.version);
             fmt::print(out, fmtstring, "Build", pkg.build_string);
-            fmt::print(out, " {:<15} {} kB\n", "Size", pkg.size / 1000);
+            fmt::print(out, fmtstring, "Build Number", pkg.build_number);
+            fmt::print(out, " {:<15} {} Kb\n", "Size", pkg.size / 1000);
             fmt::print(out, fmtstring, "License", pkg.license);
             fmt::print(out, fmtstring, "Subdir", pkg.subdir);
-            fmt::print(out, fmtstring, "File Name", pkg.fn);
 
-            using CondaURL = typename specs::CondaURL;
-            auto url = CondaURL::parse(pkg.url);
-            fmt::print(
-                out,
-                " {:<15} {}\n",
-                "URL",
-                url.pretty_str(CondaURL::StripScheme::no, '/', CondaURL::HideConfidential::yes)
-            );
+            std::string url_remaining, url_scheme, url_auth, url_token;
+            split_scheme_auth_token(pkg.url, url_remaining, url_scheme, url_auth, url_token);
+
+            fmt::print(out, " {:<15} {}://{}\n", "URL", url_scheme, url_remaining);
 
             fmt::print(out, fmtstring, "MD5", pkg.md5.empty() ? "Not available" : pkg.md5);
             fmt::print(out, fmtstring, "SHA256", pkg.sha256.empty() ? "Not available" : pkg.sha256);
@@ -192,15 +187,6 @@ namespace mamba
             // std::cout << fmt::format<char>(
             // " {:<15} {:%Y-%m-%d %H:%M:%S} UTC\n", "Timestamp", fmt::gmtime(pkg.timestamp));
 
-            if (!pkg.constrains.empty())
-            {
-                fmt::print(out, "\n Run Constraints:\n");
-                for (auto& c : pkg.constrains)
-                {
-                    fmt::print(out, "  - {}\n", c);
-                }
-            }
-
             if (!pkg.depends.empty())
             {
                 fmt::print(out, "\n Dependencies:\n");
@@ -209,138 +195,14 @@ namespace mamba
                     fmt::print(out, "  - {}\n", d);
                 }
             }
-        }
 
-        /**
-         * Prints all other versions/builds in a table format for a given package.
-         */
-        auto print_other_builds(
-            std::ostream& out,
-            const PackageInfo& pkg,
-            const std::map<std::string, std::vector<PackageInfo>> groupedOtherBuilds,
-            bool showAllBuilds
-        )
-        {
-            fmt::print(
-                out,
-                "\n Other {} ({}):\n\n",
-                showAllBuilds ? "Builds" : "Versions",
-                groupedOtherBuilds.size()
-            );
-
-            std::stringstream buffer;
-
-            using namespace printers;
-            Table printer({ "Version", "Build", "", "" });
-            printer.set_alignment(
-                { alignment::left, alignment::left, alignment::left, alignment::right }
-            );
-            bool collapseVersions = !showAllBuilds && groupedOtherBuilds.size() > 5;
-            size_t counter = 0;
-            // We want the newest version to be on top, therefore we iterate in reverse.
-            for (auto it = groupedOtherBuilds.rbegin(); it != groupedOtherBuilds.rend(); it++)
+            if (!pkg.constrains.empty())
             {
-                ++counter;
-                if (collapseVersions)
+                fmt::print(out, "\n Run Constraints:\n");
+                for (auto& c : pkg.constrains)
                 {
-                    if (counter == 3)
-                    {
-                        printer.add_row(
-                            { "...",
-                              fmt::format("({} hidden versions)", groupedOtherBuilds.size() - 4),
-                              "",
-                              "..." }
-                        );
-                        continue;
-                    }
-                    else if (counter > 3 && counter < groupedOtherBuilds.size() - 1)
-                    {
-                        continue;
-                    }
+                    fmt::print(out, "  - {}\n", c);
                 }
-
-                std::vector<FormattedString> row;
-                row.push_back(it->second.front().version);
-                row.push_back(it->second.front().build_string);
-                if (it->second.size() > 1)
-                {
-                    row.push_back("(+");
-                    row.push_back(fmt::format("{} builds)", it->second.size() - 1));
-                }
-                else
-                {
-                    row.push_back("");
-                    row.push_back("");
-                }
-                printer.add_row(row);
-            }
-            printer.print(buffer);
-            std::string line;
-            while (std::getline(buffer, line))
-            {
-                out << " " << line << std::endl;
-            }
-        }
-
-        /**
-         * Prints detailed information about a given package, including a list of other
-         * versions/builds.
-         */
-        auto print_solvable(
-            std::ostream& out,
-            const PackageInfo& pkg,
-            const std::vector<PackageInfo>& otherBuilds,
-            bool showAllBuilds
-        )
-        {
-            // Filter and group builds/versions.
-            std::map<std::string, std::vector<PackageInfo>> groupedOtherBuilds;
-            auto numOtherBuildsForLatestVersion = 0;
-            if (showAllBuilds)
-            {
-                for (const auto& p : otherBuilds)
-                {
-                    if (p.sha256 != pkg.sha256)
-                    {
-                        groupedOtherBuilds[p.version + p.sha256].push_back(p);
-                    }
-                }
-            }
-            else
-            {
-                std::unordered_set<std::string> distinctBuildSHAs;
-                for (const auto& p : otherBuilds)
-                {
-                    if (distinctBuildSHAs.insert(p.sha256).second)
-                    {
-                        if (p.version != pkg.version)
-                        {
-                            groupedOtherBuilds[p.version].push_back(p);
-                        }
-                        else
-                        {
-                            ++numOtherBuildsForLatestVersion;
-                        }
-                    }
-                }
-            }
-
-            // Construct and print header line.
-            std::string additionalBuilds;
-            if (numOtherBuildsForLatestVersion > 0)
-            {
-                additionalBuilds = fmt::format(" (+ {} builds)", numOtherBuildsForLatestVersion);
-            }
-            std::string header = fmt::format("{} {} {}", pkg.name, pkg.version, pkg.build_string)
-                                 + additionalBuilds;
-            fmt::print(out, "{:^40}\n{:─^{}}\n\n", header, "", header.size() > 40 ? header.size() : 40);
-
-            // Print metadata.
-            print_metadata(out, pkg);
-
-            if (!groupedOtherBuilds.empty())
-            {
-                print_other_builds(out, pkg, groupedOtherBuilds, showAllBuilds);
             }
 
             out << '\n';
@@ -546,16 +408,7 @@ namespace mamba
 
     std::ostream& query_result::table(std::ostream& out) const
     {
-        return table(
-            out,
-            { "Name",
-              "Version",
-              "Build",
-              printers::alignmentMarker(printers::alignment::left),
-              printers::alignmentMarker(printers::alignment::right),
-              "Channel",
-              "Subdir" }
-        );
+        return table(out, { "Name", "Version", "Build", "Channel" });
     }
 
     namespace
@@ -566,16 +419,9 @@ namespace mamba
             return util::split(str, "/", 1).front();  // Has at least one element
         }
 
-        /** Get subdir from channel name. */
-        auto get_subdir(std::string_view str) -> std::string
-        {
-            return util::split(str, "/").back();
-        }
-
     }
 
-    std::ostream&
-    query_result::table(std::ostream& out, const std::vector<std::string_view>& columns) const
+    std::ostream& query_result::table(std::ostream& out, const std::vector<std::string>& fmt) const
     {
         if (m_pkg_id_list.empty())
         {
@@ -583,43 +429,25 @@ namespace mamba
         }
 
         std::vector<mamba::printers::FormattedString> headers;
-        std::vector<std::string_view> cmds, args;
-        std::vector<mamba::printers::alignment> alignments;
-        for (auto& col : columns)
+        std::vector<std::string> cmds, args;
+        for (auto& f : fmt)
         {
-            if (col == printers::alignmentMarker(printers::alignment::right)
-                || col == printers::alignmentMarker(printers::alignment::left))
+            if (f.find_first_of(":") == f.npos)
             {
-                // If an alignment marker is passed, we remove the column name.
-                headers.push_back("");
-                cmds.push_back("");
-                args.push_back("");
-                // We only check for the right alignment marker, as left alignment is set the
-                // default.
-                if (col == printers::alignmentMarker(printers::alignment::right))
-                {
-                    alignments.push_back(printers::alignment::right);
-                    continue;
-                }
-            }
-            else if (col.find_first_of(":") == col.npos)
-            {
-                headers.push_back(col);
-                cmds.push_back(col);
+                headers.push_back(f);
+                cmds.push_back(f);
                 args.push_back("");
             }
             else
             {
-                auto sfmt = util::split(col, ":", 1);
+                auto sfmt = util::split(f, ":", 1);
                 headers.push_back(sfmt[0]);
                 cmds.push_back(sfmt[0]);
                 args.push_back(sfmt[1]);
             }
-            // By default, columns are left aligned.
-            alignments.push_back(printers::alignment::left);
         }
 
-        auto format_row = [&](const PackageInfo& pkg, const std::vector<PackageInfo>& builds)
+        auto format_row = [&](const PackageInfo& pkg)
         {
             std::vector<mamba::printers::FormattedString> row;
             for (std::size_t i = 0; i < cmds.size(); ++i)
@@ -636,24 +464,10 @@ namespace mamba
                 else if (cmd == "Build")
                 {
                     row.push_back(pkg.build_string);
-                    if (builds.size() > 1)
-                    {
-                        row.push_back("(+");
-                        row.push_back(fmt::format("{} builds)", builds.size() - 1));
-                    }
-                    else
-                    {
-                        row.push_back("");
-                        row.push_back("");
-                    }
                 }
                 else if (cmd == "Channel")
                 {
                     row.push_back(cut_subdir(cut_repo_name(pkg.channel)));
-                }
-                else if (cmd == "Subdir")
-                {
-                    row.push_back(get_subdir(pkg.channel));
                 }
                 else if (cmd == "Depends")
                 {
@@ -673,30 +487,14 @@ namespace mamba
         };
 
         printers::Table printer(headers);
-        printer.set_alignment(alignments);
 
         if (!m_ordered_pkg_id_list.empty())
         {
-            std::map<std::string, std::map<std::string, std::vector<PackageInfo>>> packageBuildsByVersion;
-            std::unordered_set<std::string> distinctBuildSHAs;
             for (auto& entry : m_ordered_pkg_id_list)
             {
                 for (const auto& id : entry.second)
                 {
-                    auto package = m_dep_graph.node(id);
-                    if (distinctBuildSHAs.insert(package.sha256).second)
-                    {
-                        packageBuildsByVersion[package.name][package.version].push_back(package);
-                    }
-                }
-            }
-
-            for (const auto& entry : packageBuildsByVersion)
-            {
-                // We want the newest version to be on top, therefore we iterate in reverse.
-                for (auto it = entry.second.rbegin(); it != entry.second.rend(); ++it)
-                {
-                    printer.add_row(format_row(it->second[0], it->second));
+                    printer.add_row(format_row(m_dep_graph.node(id)));
                 }
             }
         }
@@ -704,14 +502,11 @@ namespace mamba
         {
             for (const auto& id : m_pkg_id_list)
             {
-                printer.add_row(format_row(m_dep_graph.node(id), {}));
+                printer.add_row(format_row(m_dep_graph.node(id)));
             }
         }
-
         return printer.print(out);
     }
-
-    using GraphicsParams = Context::GraphicsParams;
 
     class graph_printer
     {
@@ -720,10 +515,9 @@ namespace mamba
         using graph_type = query_result::dependency_graph;
         using node_id = graph_type::node_id;
 
-        explicit graph_printer(std::ostream& out, GraphicsParams graphics)
+        explicit graph_printer(std::ostream& out)
             : m_is_last(false)
             , m_out(out)
-            , m_graphics(std::move(graphics))
         {
         }
 
@@ -768,7 +562,8 @@ namespace mamba
         void forward_or_cross_edge(node_id, node_id to, const graph_type& g)
         {
             print_prefix(to);
-            m_out << g.node(to).name << fmt::format(m_graphics.palette.shown, " already visited\n");
+            m_out << g.node(to).name
+                  << fmt::format(Context::instance().graphics_params.palette.shown, " already visited\n");
         }
 
         void finish_edge(node_id /*from*/, node_id to, const graph_type& /*g*/)
@@ -807,15 +602,14 @@ namespace mamba
         std::vector<std::string> m_prefix_stack;
         bool m_is_last;
         std::ostream& m_out;
-        const GraphicsParams m_graphics;
     };
 
-    std::ostream& query_result::tree(std::ostream& out, const GraphicsParams& graphics) const
+    std::ostream& query_result::tree(std::ostream& out) const
     {
         bool use_graph = (m_dep_graph.number_of_nodes() > 0) && !m_dep_graph.successors(0).empty();
         if (use_graph)
         {
-            graph_printer printer{ out, graphics };
+            graph_printer printer(out);
             dfs_raw(m_dep_graph, printer, /* start= */ node_id(0));
         }
         else if (!m_pkg_id_list.empty())
@@ -851,9 +645,7 @@ namespace mamba
             // We want the cannonical channel name here.
             // We do not know what is in the `channel` field so we need to make sure.
             // This is most likely legacy and should be updated on the next major release.
-            pkg_info_json["channel"] = cut_subdir(
-                cut_repo_name(pkg_info_json["channel"].get<std::string_view>())
-            );
+            pkg_info_json["channel"] = cut_subdir(cut_repo_name(pkg_info_json["channel"]));
             j["result"]["pkgs"].push_back(std::move(pkg_info_json));
         }
 
@@ -866,9 +658,7 @@ namespace mamba
                 // We want the cannonical channel name here.
                 // We do not know what is in the `channel` field so we need to make sure.
                 // This is most likely legacy and should be updated on the next major release.
-                pkg_info_json["channel"] = cut_subdir(
-                    cut_repo_name(pkg_info_json["channel"].get<std::string_view>())
-                );
+                pkg_info_json["channel"] = cut_subdir(cut_repo_name(pkg_info_json["channel"]));
                 j["result"]["graph_roots"].push_back(std::move(pkg_info_json));
             }
             else
@@ -879,31 +669,13 @@ namespace mamba
         return j;
     }
 
-    std::ostream&
-    query_result::pretty(std::ostream& out, const Context::OutputParams& outputParams) const
+    std::ostream& query_result::pretty(std::ostream& out) const
     {
-        if (m_pkg_id_list.empty())
+        if (!m_pkg_id_list.empty())
         {
-            out << "No entries matching \"" << m_query << "\" found" << std::endl;
-        }
-        else
-        {
-            std::map<std::string, std::vector<PackageInfo>> packages;
             for (const auto& id : m_pkg_id_list)
             {
-                auto package = m_dep_graph.node(id);
-                packages[package.name].push_back(package);
-            }
-
-            auto out = Console::stream();
-            for (const auto& entry : packages)
-            {
-                print_solvable(
-                    out,
-                    entry.second[0],
-                    std::vector(entry.second.begin() + 1, entry.second.end()),
-                    outputParams.verbosity > 0
-                );
+                print_solvable(m_dep_graph.node(id));
             }
         }
         return out;

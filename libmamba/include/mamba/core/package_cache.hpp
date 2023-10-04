@@ -19,8 +19,6 @@
 
 namespace mamba
 {
-    struct ValidationOptions;
-
     enum class Writable
     {
         UNKNOWN,
@@ -34,7 +32,7 @@ namespace mamba
     {
     public:
 
-        explicit PackageCacheData(const fs::u8path& path);
+        PackageCacheData(const fs::u8path& path);
 
         bool create_directory();
         void set_writable(Writable writable);
@@ -42,8 +40,8 @@ namespace mamba
         fs::u8path path() const;
         void clear_query_cache(const PackageInfo& s);
 
-        bool has_valid_tarball(const PackageInfo& s, const ValidationOptions& options);
-        bool has_valid_extracted_dir(const PackageInfo& s, const ValidationOptions& options);
+        bool has_valid_tarball(const PackageInfo& s);
+        bool has_valid_extracted_dir(const PackageInfo& s);
 
     private:
 
@@ -59,7 +57,7 @@ namespace mamba
     {
     public:
 
-        MultiPackageCache(const std::vector<fs::u8path>& pkgs_dirs, const ValidationOptions& options);
+        MultiPackageCache(const std::vector<fs::u8path>& pkgs_dirs);
 
         std::vector<fs::u8path> paths() const;
 
@@ -77,7 +75,6 @@ namespace mamba
         std::vector<PackageCacheData> m_caches;
         std::map<std::string, fs::u8path> m_cached_tarballs;
         std::map<std::string, fs::u8path> m_cached_extracted_dirs;
-        const ValidationOptions& m_options;
     };
 }  // namespace mamba
 

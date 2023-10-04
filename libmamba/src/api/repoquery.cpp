@@ -25,18 +25,18 @@ namespace mamba
         const std::string& query
     )
     {
-        auto& ctx = config.context();
+        auto& ctx = Context::instance();
 
         config.at("use_target_prefix_fallback").set_value(true);
         config.at("target_prefix_checks")
             .set_value(MAMBA_ALLOW_EXISTING_PREFIX | MAMBA_ALLOW_MISSING_PREFIX);
         config.load();
 
-        ChannelContext channel_context{ ctx };
+        ChannelContext channel_context;
         MPool pool{ channel_context };
 
         // bool installed = (type == QueryType::kDepends) || (type == QueryType::kWhoneeds);
-        MultiPackageCache package_caches(ctx.pkgs_dirs, ctx.validation_params);
+        MultiPackageCache package_caches(ctx.pkgs_dirs);
         if (use_local)
         {
             if (format != QueryResultFormat::kJSON)
@@ -87,7 +87,7 @@ namespace mamba
                         std::cout << res.json(pool.channel_context()).dump(4);
                         break;
                     case QueryResultFormat::kPRETTY:
-                        res.pretty(std::cout, ctx.output_params);
+                        res.pretty(std::cout);
                         break;
                     default:
                         res.groupby("name").table(std::cout);
@@ -109,7 +109,7 @@ namespace mamba
             {
                 case QueryResultFormat::kTREE:
                 case QueryResultFormat::kPRETTY:
-                    res.tree(std::cout, config.context().graphics_params);
+                    res.tree(std::cout);
                     break;
                 case QueryResultFormat::kJSON:
                     std::cout << res.json(pool.channel_context()).dump(4);
@@ -135,7 +135,7 @@ namespace mamba
             {
                 case QueryResultFormat::kTREE:
                 case QueryResultFormat::kPRETTY:
-                    res.tree(std::cout, config.context().graphics_params);
+                    res.tree(std::cout);
                     break;
                 case QueryResultFormat::kJSON:
                     std::cout << res.json(pool.channel_context()).dump(4);
@@ -144,14 +144,7 @@ namespace mamba
                 case QueryResultFormat::kRECURSIVETABLE:
                     res.sort("name").table(
                         std::cout,
-                        { "Name",
-                          "Version",
-                          "Build",
-                          printers::alignmentMarker(printers::alignment::left),
-                          printers::alignmentMarker(printers::alignment::right),
-                          util::concat("Depends:", query),
-                          "Channel",
-                          "Subdir" }
+                        { "Name", "Version", "Build", util::concat("Depends:", query), "Channel" }
                     );
             }
             if (res.empty() && format != QueryResultFormat::kJSON)

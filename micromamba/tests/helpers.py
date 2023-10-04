@@ -83,14 +83,14 @@ def random_string(n: int = 10) -> str:
     return "".join(random.choices(string.ascii_uppercase + string.digits, k=n))
 
 
-def shell(*args, cwd=os.getcwd(), **kwargs):
+def shell(*args, cwd=os.getcwd()):
     umamba = get_umamba(cwd=cwd)
     cmd = [umamba, "shell"] + [arg for arg in args if arg]
 
     if "--print-config-only" in args:
         cmd += ["--debug"]
 
-    res = subprocess_run(*cmd, **kwargs)
+    res = subprocess_run(*cmd)
     if "--json" in args:
         try:
             j = json.loads(res)
@@ -103,10 +103,10 @@ def shell(*args, cwd=os.getcwd(), **kwargs):
     return res.decode()
 
 
-def info(*args, **kwargs):
+def info(*args):
     umamba = get_umamba()
     cmd = [umamba, "info"] + [arg for arg in args if arg]
-    res = subprocess_run(*cmd, **kwargs)
+    res = subprocess_run(*cmd)
     if "--json" in args:
         try:
             j = json.loads(res)
@@ -117,21 +117,21 @@ def info(*args, **kwargs):
     return res.decode()
 
 
-def login(*args, **kwargs):
+def login(*args):
     umamba = get_umamba()
     cmd = [umamba, "auth", "login"] + [arg for arg in args if arg]
-    res = subprocess_run(*cmd, **kwargs)
+    res = subprocess_run(*cmd)
     return res.decode()
 
 
-def logout(*args, **kwargs):
+def logout(*args):
     umamba = get_umamba()
     cmd = [umamba, "auth", "logout"] + [arg for arg in args if arg]
-    res = subprocess_run(*cmd, **kwargs)
+    res = subprocess_run(*cmd)
     return res.decode()
 
 
-def install(*args, default_channel=True, no_rc=True, no_dry_run=False, **kwargs):
+def install(*args, default_channel=True, no_rc=True, no_dry_run=False):
     umamba = get_umamba()
     cmd = [umamba, "install", "-y"] + [arg for arg in args if arg]
 
@@ -147,7 +147,7 @@ def install(*args, default_channel=True, no_rc=True, no_dry_run=False, **kwargs)
         cmd += ["--dry-run"]
     cmd += ["--log-level=info"]
 
-    res = subprocess_run(*cmd, **kwargs)
+    res = subprocess_run(*cmd)
 
     if "--json" in args:
         try:
@@ -168,7 +168,6 @@ def create(
     no_dry_run=False,
     always_yes=True,
     create_cmd="create",
-    **kwargs,
 ):
     umamba = get_umamba()
     cmd = [umamba] + create_cmd.split() + [str(arg) for arg in args if arg]
@@ -187,7 +186,7 @@ def create(
         cmd += ["--dry-run"]
 
     try:
-        res = subprocess_run(*cmd, **kwargs)
+        res = subprocess_run(*cmd)
         if "--json" in args:
             j = json.loads(res)
             return j
@@ -199,7 +198,7 @@ def create(
         raise (e)
 
 
-def remove(*args, no_dry_run=False, **kwargs):
+def remove(*args, no_dry_run=False):
     umamba = get_umamba()
     cmd = [umamba, "remove", "-y"] + [arg for arg in args if arg]
 
@@ -209,7 +208,7 @@ def remove(*args, no_dry_run=False, **kwargs):
         cmd += ["--dry-run"]
 
     try:
-        res = subprocess_run(*cmd, **kwargs)
+        res = subprocess_run(*cmd)
         if "--json" in args:
             j = json.loads(res)
             return j
@@ -221,7 +220,7 @@ def remove(*args, no_dry_run=False, **kwargs):
         raise (e)
 
 
-def clean(*args, no_dry_run=False, **kwargs):
+def clean(*args, no_dry_run=False):
     umamba = get_umamba()
     cmd = [umamba, "clean", "-y"] + [arg for arg in args if arg]
 
@@ -231,7 +230,7 @@ def clean(*args, no_dry_run=False, **kwargs):
         cmd += ["--dry-run"]
 
     try:
-        res = subprocess.check_output(cmd, **kwargs)
+        res = subprocess.check_output(cmd)
         if "--json" in args:
             j = json.loads(res)
             return j
@@ -243,7 +242,7 @@ def clean(*args, no_dry_run=False, **kwargs):
         raise (e)
 
 
-def update(*args, default_channel=True, no_rc=True, no_dry_run=False, **kwargs):
+def update(*args, default_channel=True, no_rc=True, no_dry_run=False):
     umamba = get_umamba()
     cmd = [umamba, "update", "-y"] + [arg for arg in args if arg]
     if use_offline:
@@ -256,7 +255,7 @@ def update(*args, default_channel=True, no_rc=True, no_dry_run=False, **kwargs):
         cmd += ["--dry-run"]
 
     try:
-        res = subprocess_run(*cmd, **kwargs)
+        res = subprocess_run(*cmd)
         if "--json" in args:
             try:
                 j = json.loads(res)
@@ -264,6 +263,8 @@ def update(*args, default_channel=True, no_rc=True, no_dry_run=False, **kwargs):
             except json.decoder.JSONDecodeError as e:
                 print(f"Error when loading JSON output from {res}")
                 raise (e)
+        print(f"Error when executing '{' '.join(cmd)}'")
+        raise
 
         return res.decode()
     except subprocess.CalledProcessError as e:
@@ -271,11 +272,11 @@ def update(*args, default_channel=True, no_rc=True, no_dry_run=False, **kwargs):
         raise (e)
 
 
-def run_env(*args, f=None, **kwargs):
+def run_env(*args, f=None):
     umamba = get_umamba()
     cmd = [umamba, "env"] + [str(arg) for arg in args if arg]
 
-    res = subprocess_run(*cmd, **kwargs)
+    res = subprocess_run(*cmd)
 
     if "--json" in args:
         j = json.loads(res)
@@ -284,11 +285,11 @@ def run_env(*args, f=None, **kwargs):
     return res.decode()
 
 
-def umamba_list(*args, **kwargs):
+def umamba_list(*args):
     umamba = get_umamba()
 
     cmd = [umamba, "list"] + [str(arg) for arg in args if arg]
-    res = subprocess_run(*cmd, **kwargs)
+    res = subprocess_run(*cmd)
 
     if "--json" in args:
         j = json.loads(res)
@@ -310,7 +311,7 @@ def umamba_run(*args, **kwargs):
     return res.decode()
 
 
-def umamba_repoquery(*args, no_rc=True, **kwargs):
+def umamba_repoquery(*args, no_rc=True):
     umamba = get_umamba()
 
     cmd = [umamba, "repoquery"] + [str(arg) for arg in args if arg]
@@ -318,7 +319,7 @@ def umamba_repoquery(*args, no_rc=True, **kwargs):
     if no_rc:
         cmd += ["--no-rc"]
 
-    res = subprocess_run(*cmd, **kwargs)
+    res = subprocess_run(*cmd)
 
     if "--json" in args:
         j = json.loads(res)
@@ -505,19 +506,3 @@ def get_fake_activate(prefix):
     env["PATH"] = os.pathsep.join([str(x) for x in addpath + curpath])
     env["CONDA_PREFIX"] = str(prefix)
     return env
-
-
-def create_with_chan_pkg(env_name, channels, package):
-    cmd = [
-        "-n",
-        env_name,
-        "--override-channels",
-        "--strict-channel-priority",
-        "--dry-run",
-        "--json",
-    ]
-    for channel in channels:
-        cmd += ["-c", os.path.abspath(os.path.join(*channel))]
-    cmd.append(package)
-
-    return create(*cmd, default_channel=False, no_rc=False)

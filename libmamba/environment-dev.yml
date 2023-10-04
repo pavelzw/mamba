@@ -12,8 +12,8 @@ dependencies:
   - libcurl >=7.86
   - doctest
   - cpp-expected
-  - reproc-cpp >=14.2.4.post0
-  - yaml-cpp >=0.8.0
+  - reproc-cpp
+  - yaml-cpp
   - cli11 >=2.2
   - spdlog
   - fmt

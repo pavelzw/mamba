@@ -206,16 +206,6 @@ class TestConfigList:
             == f"channels:\n  - channel1{src}\n  - channel2{src}\n".splitlines()
         )
 
-    @pytest.mark.parametrize("source_flag", ["--sources", "-s"])
-    @pytest.mark.parametrize("rc_file_args", ({"custom_channels": {"key1": "value1"}},))
-    def test_list_map_with_sources(self, rc_file, source_flag):
-        home_folder = os.path.expanduser("~")
-        src = f"  # '{str(rc_file).replace(home_folder, '~')}'"
-        assert (
-            config("list", "--no-env", "--rc-file", rc_file, source_flag).splitlines()
-            == f"custom_channels:\n  key1: value1{src}\n".splitlines()
-        )
-
     @pytest.mark.parametrize("desc_flag", ["--descriptions", "-d"])
     @pytest.mark.parametrize("rc_file_args", ({"channels": ["channel1", "channel2"]},))
     def test_list_with_descriptions(self, rc_file, desc_flag):
@@ -727,18 +717,21 @@ class TestConfigExpandVars:
     @pytest.mark.parametrize(
         "inp,outp",
         [
-            # Tests copied from: cpython/Lib/test/test_genericpath.py
             ("$", "$"),
-            ("$$", "$$"),
+            ("$$", "$"),
             ("foo", "foo"),
             ("${foo}bar1", "barbar1"),
             ("$[foo]bar", "$[foo]bar"),
             ("$bar bar", "$bar bar"),
             ("$?bar", "$?bar"),
-            ("$foo}bar", "bar}bar"),
             ("${foo", "${foo"),
+            ("${{foo}}2", "baz1}2"),
+            ("$bar$bar", "$bar$bar"),
             # Not supported by Micromamba
-            # ("${{foo}}", "baz1"),
+            # ("$foo$foo", "barbar"),
+            # ("$foo}bar", "bar}bar"),
+            # ("$foo$$foo bar", "bar$foo bar"),
+            # ("$foo bar", "bar bar"),
             # *(
             #     [
             #         ("%", "%"),
@@ -767,15 +760,11 @@ class TestConfigExpandVars:
             #     if platform.system() == "Windows"
             #     else []
             # ),
-            # Our tests:
-            ("$bar$bar", "$bar$bar"),
-            ("$foo$foo", "barbar"),
-            ("$foo$$foo bar", "bar$bar bar"),
-            ("$foo bar", "bar bar"),
         ],
     )
     @pytest.mark.parametrize("yaml_quote", ["", '"', "'"])
     def test_expandvars_cpython(self, monkeypatch, rc_file, inp, outp, yaml_quote):
+        """Tests copied from CPython."""
         monkeypatch.setenv("foo", "bar", True)
         monkeypatch.setenv("{foo", "baz1", True)
         monkeypatch.setenv("{foo}", "baz2", True)

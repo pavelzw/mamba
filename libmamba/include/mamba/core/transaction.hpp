@@ -70,11 +70,9 @@ namespace mamba
         const fs::u8path m_cache_path;
         Solution m_solution;
 
-        History::UserRequest m_history_entry;
+        History::UserRequest m_history_entry = History::UserRequest::prefilled();
 
         std::vector<MatchSpec> m_requested_specs;
-
-        MTransaction(MPool&, MultiPackageCache&);
     };
 
     MTransaction create_explicit_transaction_from_urls(

@@ -20,15 +20,12 @@ extern "C"  // Incomplete header
 #include <solv/conda.h>
 }
 
-#include "mamba/core/context.hpp"
 #include "mamba/core/package_info.hpp"
 #include "mamba/core/pool.hpp"
 #include "mamba/util/graph.hpp"
 
 namespace mamba
 {
-    using GraphicsParams = Context::GraphicsParams;
-
     void print_dep_graph(
         std::ostream& out,
         Solvable* s,
@@ -95,11 +92,11 @@ namespace mamba
         query_result& reset();
 
         std::ostream& table(std::ostream&) const;
-        std::ostream& table(std::ostream&, const std::vector<std::string_view>& fmt) const;
-        std::ostream& tree(std::ostream&, const GraphicsParams& graphics) const;
+        std::ostream& table(std::ostream&, const std::vector<std::string>& fmt) const;
+        std::ostream& tree(std::ostream&) const;
         nlohmann::json json(ChannelContext& channel_context) const;
 
-        std::ostream& pretty(std::ostream&, const Context::OutputParams& outputParams) const;
+        std::ostream& pretty(std::ostream&) const;
 
         bool empty() const;
 

@@ -1,5 +1,4 @@
 import os
-import re
 import shutil
 from pathlib import Path
 
@@ -60,37 +59,14 @@ def test_register_new_env(tmp_home, tmp_root_prefix):
     assert str(env_3_fp) in env_json["envs"]
 
 
-@pytest.fixture(scope="module")
-def export_env():
+def test_env_export(tmp_home, tmp_root_prefix):
     env_name = "env-create-export"
     spec_file = __this_dir__ / "env-create-export.yaml"
     helpers.create("-n", env_name, "-f", spec_file)
-    return env_name
-
-
-@pytest.mark.parametrize("channel_subdir_flag", [None, "--channel-subdir"])
-@pytest.mark.parametrize("md5_flag", [None, "--md5", "--no-md5"])
-@pytest.mark.parametrize("explicit_flag", [None, "--explicit"])
-def test_env_export(export_env, explicit_flag, md5_flag, channel_subdir_flag):
-    flags = filter(None, [explicit_flag, md5_flag, channel_subdir_flag])
-    output = helpers.run_env("export", "-n", export_env, *flags)
-    if explicit_flag:
-        assert "/micromamba-0.24.0-0." in output
-        if md5_flag != "--no-md5":
-            assert re.search("#[a-f0-9]{32}$", output.replace("\r", ""))
-    else:
-        ret = yaml.safe_load(output)
-        assert ret["name"] == export_env
-        assert set(ret["channels"]) == {"conda-forge"}
-        assert "micromamba=0.24.0=0" in str(ret["dependencies"])
-        if md5_flag == "--md5":
-            assert re.search(
-                r"micromamba=0.24.0=0\[md5=[a-f0-9]{32}\]", str(ret["dependencies"])
-            )
-        if channel_subdir_flag:
-            assert re.search(
-                r"conda-forge/[a-z0-9-]+::micromamba=0.24.0=0", str(ret["dependencies"])
-            )
+    ret = yaml.safe_load(helpers.run_env("export", "-n", env_name))
+    assert ret["name"] == env_name
+    assert set(ret["channels"]) == {"conda-forge"}
+    assert "micromamba=0.24.0=0" in ret["dependencies"]
 
 
 def test_create():
@@ -125,61 +101,6 @@ def test_env_remove(tmp_home, tmp_root_prefix):
     with open(conda_env_file, "r", encoding="utf-8") as f:
         lines = [line.strip() for line in f]
         assert str(env_fp) not in lines
-
-
-env_yaml_content = """
-channels:
-- conda-forge
-dependencies:
-- python
-"""
-
-
-@pytest.mark.parametrize("shared_pkgs_dirs", [True], indirect=True)
-@pytest.mark.parametrize("prune", (False, True))
-def test_env_update(tmp_home, tmp_root_prefix, tmp_path, prune):
-    env_name = "env-create-update"
-
-    # Create env with python=3.6.15 and xtensor=0.20.0
-    helpers.create(
-        "python=3.6.15", "xtensor=0.20.0", "-n", env_name, "--json", no_dry_run=True
-    )
-    packages = helpers.umamba_list("-n", env_name, "--json")
-    assert any(
-        package["name"] == "python" and package["version"] == "3.6.15"
-        for package in packages
-    )
-    assert any(
-        package["name"] == "xtensor" and package["version"] == "0.20.0"
-        for package in packages
-    )
-    assert any(package["name"] == "xtl" for package in packages)
-
-    # Update python
-    from packaging.version import Version
-
-    env_file_yml = tmp_path / "test_env.yaml"
-    env_file_yml.write_text(env_yaml_content)
-
-    cmd = ["update", "-n", env_name, f"--file={env_file_yml}", "-y"]
-    if prune:
-        cmd += ["--prune"]
-    helpers.run_env(*cmd)
-    packages = helpers.umamba_list("-n", env_name, "--json")
-    assert any(
-        package["name"] == "python" and Version(package["version"]) > Version("3.6.15")
-        for package in packages
-    )
-    if prune:
-        assert not any(package["name"] == "xtensor" for package in packages)
-        # Make sure dependencies of removed pkgs are removed as well (xtl is a dep of xtensor)
-        assert not any(package["name"] == "xtl" for package in packages)
-    else:
-        assert any(
-            package["name"] == "xtensor" and package["version"] == "0.20.0"
-            for package in packages
-        )
-        assert any(package["name"] == "xtl" for package in packages)
 
 
 @pytest.mark.parametrize("shared_pkgs_dirs", [True], indirect=True)

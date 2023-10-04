@@ -13,7 +13,7 @@
 using namespace mamba::util;
 
 
-TEST_SUITE("util::type_traits")
+TEST_SUITE("type_traits")
 {
     struct NotOStreamable
     {

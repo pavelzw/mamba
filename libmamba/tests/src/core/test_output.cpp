@@ -9,20 +9,18 @@
 #include "mamba/core/context.hpp"
 #include "mamba/core/output.hpp"
 
-#include "mambatests.hpp"
-
 namespace mamba
 {
     TEST_SUITE("output")
     {
         TEST_CASE("no_progress_bars")
         {
-            mambatests::context().graphics_params.no_progress_bars = true;
+            Context::instance().graphics_params.no_progress_bars = true;
             auto proxy = Console::instance().add_progress_bar("conda-forge");
             CHECK_FALSE(proxy.defined());
             CHECK_FALSE(proxy);
 
-            mambatests::context().graphics_params.no_progress_bars = false;
+            Context::instance().graphics_params.no_progress_bars = false;
             proxy = Console::instance().add_progress_bar("conda-forge");
             CHECK(proxy.defined());
             CHECK(proxy);

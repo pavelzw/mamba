@@ -15,7 +15,7 @@
 
 using namespace mamba::solv;
 
-TEST_SUITE("solv::ObjQueue")
+TEST_SUITE("ObjQueue")
 {
     TEST_CASE("constructor")
     {

@@ -13,15 +13,11 @@
 #include <pybind11/operators.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-#include <pybind11/stl_bind.h>
 
 #include "mamba/api/clean.hpp"
 #include "mamba/api/configuration.hpp"
 #include "mamba/core/channel.hpp"
 #include "mamba/core/context.hpp"
-#include "mamba/core/download_progress_bar.hpp"
-#include "mamba/core/execution.hpp"
-#include "mamba/core/fetch.hpp"
 #include "mamba/core/output.hpp"
 #include "mamba/core/package_handling.hpp"
 #include "mamba/core/pool.hpp"
@@ -117,154 +113,17 @@ bind_NamedList(PyClass pyclass)
 
 namespace mambapy
 {
-    class Singletons
+    struct Singletons
     {
-    public:
-
-        mamba::MainExecutor& main_executor()
-        {
-            return m_main_executor;
-        }
-        mamba::Context& context()
-        {
-            return m_context;
-        }
-        mamba::Console& console()
-        {
-            return m_console;
-        }
-        mamba::ChannelContext& channel_context()
-        {
-            return init_once(p_channel_context, m_context);
-        }
-
-        mamba::Configuration& config()
-        {
-            return m_config;
-        }
-
-    private:
-
-        template <class T, class D>
-        T& init_once(std::unique_ptr<T, D>& ptr, mamba::Context& context)
-        {
-            static std::once_flag init_flag;
-            std::call_once(init_flag, [&] { ptr = std::make_unique<T>(context); });
-            if (!ptr)
-            {
-                throw mamba::mamba_error(
-                    fmt::format(
-                        "attempt to use {} singleton instance after destruction",
-                        typeid(T).name()
-                    ),
-                    mamba::mamba_error_code::internal_failure
-                );
-            }
-            return *ptr;
-        }
-
-        mamba::MainExecutor m_main_executor;
-        mamba::Context m_context{ { /* .enable_logging_and_signal_handling = */ true } };
-        mamba::Console m_console{ m_context };
-        // ChannelContext needs to be lazy initialized, to enusre the Context has been initialized
-        // before
-        std::unique_ptr<mamba::ChannelContext> p_channel_context = nullptr;
-        mamba::Configuration m_config{ m_context };
+        mamba::ChannelContext channel_context;
+        mamba::Configuration config;
     };
 
-    Singletons singletons;
-
-    // MSubdirData objects are movable only, and they need to be moved into
-    // a std::vector before we call MSudbirData::download. Since we cannot
-    // replicate the move semantics in Python, we encapsulate the creation
-    // and the storage of MSubdirData objects in this class, to avoid
-    // potential dangling references in Python.
-    class SubdirIndex
+    Singletons& singletons()
     {
-    public:
-
-        struct Entry
-        {
-            mamba::MSubdirData* p_subdirdata = nullptr;
-            std::string m_platform = "";
-            const mamba::Channel* p_channel = nullptr;
-            std::string m_url = "";
-        };
-
-        using entry_list = std::vector<Entry>;
-        using iterator = entry_list::const_iterator;
-
-        void create(
-            mamba::ChannelContext& channel_context,
-            const mamba::Channel& channel,
-            const std::string& platform,
-            const std::string& full_url,
-            mamba::MultiPackageCache& caches,
-            const std::string& repodata_fn,
-            const std::string& url
-        )
-        {
-            using namespace mamba;
-            m_subdirs.push_back(extract(
-                MSubdirData::create(channel_context, channel, platform, full_url, caches, repodata_fn)
-            ));
-            m_entries.push_back({ nullptr, platform, &channel, url });
-            for (size_t i = 0; i < m_subdirs.size(); ++i)
-            {
-                m_entries[i].p_subdirdata = &(m_subdirs[i]);
-            }
-        }
-
-        bool download()
-        {
-            using namespace mamba;
-            // TODO: expose DownloadProgressBar to libmambapy and remove this
-            //  logic
-            Context& ctx = mambapy::singletons.context();
-            expected_t<void> download_res;
-            if (DownloadProgressBar::can_monitor(ctx))
-            {
-                DownloadProgressBar check_monitor({ true, true });
-                DownloadProgressBar index_monitor;
-                download_res = MSubdirData::download_indexes(
-                    m_subdirs,
-                    ctx,
-                    &check_monitor,
-                    &index_monitor
-                );
-            }
-            else
-            {
-                download_res = MSubdirData::download_indexes(m_subdirs, ctx);
-            }
-            return download_res.has_value();
-        }
-
-        std::size_t size() const
-        {
-            return m_entries.size();
-        }
-
-        const Entry& operator[](std::size_t index) const
-        {
-            return m_entries[index];
-        }
-
-        iterator begin() const
-        {
-            return m_entries.begin();
-        }
-
-        iterator end() const
-        {
-            return m_entries.end();
-        }
-
-    private:
-
-        std::vector<mamba::MSubdirData> m_subdirs;
-        entry_list m_entries;
-    };
+        static Singletons singletons;
+        return singletons;
+    }
 }
 
 PYBIND11_MODULE(bindings, m)
@@ -276,10 +135,7 @@ PYBIND11_MODULE(bindings, m)
     auto pyPackageInfo = py::class_<PackageInfo>(m, "PackageInfo");
     auto pyPrefixData = py::class_<PrefixData>(m, "PrefixData");
     auto pySolver = py::class_<MSolver>(m, "Solver");
-    auto pyMultiDownloadTarget = py::class_<MultiDownloadTarget, std::unique_ptr<MultiDownloadTarget>>(
-        m,
-        "DownloadTargetList"
-    );
+    auto pyMultiDownloadTarget = py::class_<MultiDownloadTarget>(m, "DownloadTargetList");
     // only used in a return type; does it belong in the module?
     auto pyRootRole = py::class_<validation::RootRole>(m, "RootRole");
 
@@ -303,13 +159,13 @@ PYBIND11_MODULE(bindings, m)
         .def(py::init<>())
         .def(py::init<>(
             [](const std::string& name) {
-                return MatchSpec{ name, mambapy::singletons.channel_context() };
+                return MatchSpec{ name, mambapy::singletons().channel_context };
             }
         ))
         .def("conda_build_form", &MatchSpec::conda_build_form);
 
     py::class_<MPool>(m, "Pool")
-        .def(py::init<>([] { return MPool{ mambapy::singletons.channel_context() }; }))
+        .def(py::init<>([] { return MPool{ mambapy::singletons().channel_context }; }))
         .def("set_debuglevel", &MPool::set_debuglevel)
         .def("create_whatprovides", &MPool::create_whatprovides)
         .def("select_solvables", &MPool::select_solvables, py::arg("id"), py::arg("sorted") = false)
@@ -317,22 +173,14 @@ PYBIND11_MODULE(bindings, m)
         .def(
             "matchspec2id",
             [](MPool& self, std::string_view ms) {
-                return self.matchspec2id({ ms, mambapy::singletons.channel_context() });
+                return self.matchspec2id({ ms, mambapy::singletons().channel_context });
             },
             py::arg("ms")
         )
         .def("id2pkginfo", &MPool::id2pkginfo, py::arg("id"));
 
     py::class_<MultiPackageCache>(m, "MultiPackageCache")
-        .def(py::init<>(
-            [](const std::vector<fs::u8path>& pkgs_dirs)
-            {
-                return MultiPackageCache{
-                    pkgs_dirs,
-                    mambapy::singletons.context().validation_params,
-                };
-            }
-        ))
+        .def(py::init<std::vector<fs::u8path>>())
         .def("get_tarball_path", &MultiPackageCache::get_tarball_path)
         .def_property_readonly("first_writable_path", &MultiPackageCache::first_writable_path);
 
@@ -372,17 +220,6 @@ PYBIND11_MODULE(bindings, m)
         .def("find_python_version", &MTransaction::py_find_python_version)
         .def("execute", &MTransaction::execute);
 
-    py::class_<MSolverProblem>(m, "SolverProblem")
-        .def_readwrite("type", &MSolverProblem::type)
-        .def_readwrite("source_id", &MSolverProblem::source_id)
-        .def_readwrite("target_id", &MSolverProblem::target_id)
-        .def_readwrite("dep_id", &MSolverProblem::dep_id)
-        .def_readwrite("source", &MSolverProblem::source)
-        .def_readwrite("target", &MSolverProblem::target)
-        .def_readwrite("dep", &MSolverProblem::dep)
-        .def_readwrite("description", &MSolverProblem::description)
-        .def("__str__", [](const MSolverProblem& self) { return self.description; });
-
     pySolver.def(py::init<MPool&, std::vector<std::pair<int, int>>>(), py::keep_alive<1, 2>())
         .def("add_jobs", &MSolver::add_jobs)
         .def("add_global_job", &MSolver::add_global_job)
@@ -405,6 +242,17 @@ PYBIND11_MODULE(bindings, m)
         )
         .def("try_solve", &MSolver::try_solve)
         .def("must_solve", &MSolver::must_solve);
+
+    py::class_<MSolverProblem>(m, "SolverProblem")
+        .def_readwrite("type", &MSolverProblem::type)
+        .def_readwrite("source_id", &MSolverProblem::source_id)
+        .def_readwrite("target_id", &MSolverProblem::target_id)
+        .def_readwrite("dep_id", &MSolverProblem::dep_id)
+        .def_readwrite("source", &MSolverProblem::source)
+        .def_readwrite("target", &MSolverProblem::target)
+        .def_readwrite("dep", &MSolverProblem::dep)
+        .def_readwrite("description", &MSolverProblem::description)
+        .def("__str__", [](const MSolverProblem& self) { return self.description; });
 
     using PbGraph = ProblemsGraph;
     auto pyPbGraph = py::class_<PbGraph>(m, "ProblemsGraph");
@@ -491,7 +339,7 @@ PYBIND11_MODULE(bindings, m)
     py::class_<History>(m, "History")
         .def(py::init(
             [](const fs::u8path& path) {
-                return History{ path, mambapy::singletons.channel_context() };
+                return History{ path, mambapy::singletons().channel_context };
             }
         ))
         .def("get_requested_specs_map", &History::get_requested_specs_map);
@@ -522,7 +370,7 @@ PYBIND11_MODULE(bindings, m)
                 {
                     case query::JSON:
                         res_stream
-                            << res.groupby("name").json(mambapy::singletons.channel_context()).dump(4);
+                            << res.groupby("name").json(mambapy::singletons().channel_context).dump(4);
                         break;
                     case query::TREE:
                     case query::TABLE:
@@ -530,10 +378,7 @@ PYBIND11_MODULE(bindings, m)
                         res.groupby("name").table(res_stream);
                         break;
                     case query::PRETTY:
-                        res.groupby("name").pretty(
-                            res_stream,
-                            mambapy::singletons.context().output_params
-                        );
+                        res.groupby("name").pretty(res_stream);
                 }
                 if (res.empty() && format != query::JSON)
                 {
@@ -554,23 +399,16 @@ PYBIND11_MODULE(bindings, m)
                 {
                     case query::TREE:
                     case query::PRETTY:
-                        res.tree(res_stream, mambapy::singletons.context().graphics_params);
+                        res.tree(res_stream);
                         break;
                     case query::JSON:
-                        res_stream << res.json(mambapy::singletons.channel_context()).dump(4);
+                        res_stream << res.json(mambapy::singletons().channel_context).dump(4);
                         break;
                     case query::TABLE:
                     case query::RECURSIVETABLE:
                         res.table(
                             res_stream,
-                            { "Name",
-                              "Version",
-                              "Build",
-                              printers::alignmentMarker(printers::alignment::left),
-                              printers::alignmentMarker(printers::alignment::right),
-                              util::concat("Depends:", query),
-                              "Channel",
-                              "Subdir" }
+                            { "Name", "Version", "Build", util::concat("Depends:", query), "Channel" }
                         );
                 }
                 if (res.empty() && format != query::JSON)
@@ -594,10 +432,10 @@ PYBIND11_MODULE(bindings, m)
                 {
                     case query::TREE:
                     case query::PRETTY:
-                        res.tree(res_stream, mambapy::singletons.context().graphics_params);
+                        res.tree(res_stream);
                         break;
                     case query::JSON:
-                        res_stream << res.json(mambapy::singletons.channel_context()).dump(4);
+                        res_stream << res.json(mambapy::singletons().channel_context).dump(4);
                         break;
                     case query::TABLE:
                     case query::RECURSIVETABLE:
@@ -615,72 +453,62 @@ PYBIND11_MODULE(bindings, m)
         );
 
     py::class_<MSubdirData>(m, "SubdirData")
+        .def(py::init(
+            [](const Channel& channel,
+               const std::string& platform,
+               const std::string& url,
+               MultiPackageCache& caches,
+               const std::string& repodata_fn) -> MSubdirData
+            {
+                auto sres = MSubdirData::create(
+                    mambapy::singletons().channel_context,
+                    channel,
+                    platform,
+                    url,
+                    caches,
+                    repodata_fn
+                );
+                return extract(std::move(sres));
+            }
+        ))
         .def(
             "create_repo",
             [](MSubdirData& subdir, MPool& pool) -> MRepo
             { return extract(subdir.create_repo(pool)); }
         )
-        .def("loaded", &MSubdirData::is_loaded)
+        .def("loaded", &MSubdirData::loaded)
         .def(
             "cache_path",
             [](const MSubdirData& self) -> std::string { return extract(self.cache_path()); }
-        );
-
-    using mambapy::SubdirIndex;
-    using SubdirIndexEntry = SubdirIndex::Entry;
-
-    py::class_<SubdirIndexEntry>(m, "SubdirIndexEntry")
-        .def(py::init<>())
-        .def_readonly("subdir", &SubdirIndexEntry::p_subdirdata, py::return_value_policy::reference)
-        .def_readonly("platform", &SubdirIndexEntry::m_platform)
-        .def_readonly("channel", &SubdirIndexEntry::p_channel, py::return_value_policy::reference)
-        .def_readonly("url", &SubdirIndexEntry::m_url);
-
-    py::class_<SubdirIndex>(m, "SubdirIndex")
-        .def(py::init<>())
+        )
         .def(
-            "create",
-            [](SubdirIndex& self,
-               const Channel& channel,
-               const std::string& platform,
-               const std::string& full_url,
-               MultiPackageCache& caches,
-               const std::string& repodata_fn,
-               const std::string& url)
+            "download_and_check_targets",
+            [](MSubdirData& self, MultiDownloadTarget& multi_download) -> bool
             {
-                self.create(
-                    mambapy::singletons.channel_context(),
-                    channel,
-                    platform,
-                    full_url,
-                    caches,
-                    repodata_fn,
-                    url
-                );
+                for (auto& check_target : self.check_targets())
+                {
+                    multi_download.add(check_target.get());
+                }
+                multi_download.download(MAMBA_NO_CLEAR_PROGRESS_BARS);
+                return self.check_targets().size();
             }
         )
-        .def("download", &SubdirIndex::download)
-        .def("__len__", &SubdirIndex::size)
-        .def("__getitem__", &SubdirIndex::operator[])
-        .def(
-            "__iter__",
-            [](SubdirIndex& self) { return py::make_iterator(self.begin(), self.end()); },
-            py::keep_alive<0, 1>()
-        );
+        .def("finalize_checks", &MSubdirData::finalize_checks);
 
     m.def("cache_fn_url", &cache_fn_url);
     m.def("create_cache_dir", &create_cache_dir);
 
-    pyMultiDownloadTarget
-        .def(py::init(
-            [] { return std::make_unique<MultiDownloadTarget>(mambapy::singletons.context()); }
-        ))
+    pyMultiDownloadTarget.def(py::init<>())
+        .def(
+            "add",
+            [](MultiDownloadTarget& self, MSubdirData& sub) -> void { self.add(sub.target()); }
+        )
         .def("download", &MultiDownloadTarget::download);
 
     py::enum_<ChannelPriority>(m, "ChannelPriority")
-        .value("Flexible", ChannelPriority::Flexible)
-        .value("Strict", ChannelPriority::Strict)
-        .value("Disabled", ChannelPriority::Disabled);
+        .value("kFlexible", ChannelPriority::kFlexible)
+        .value("kStrict", ChannelPriority::kStrict)
+        .value("kDisabled", ChannelPriority::kDisabled);
 
     py::enum_<mamba::log_level>(m, "LogLevel")
         .value("TRACE", mamba::log_level::trace)
@@ -692,15 +520,14 @@ PYBIND11_MODULE(bindings, m)
         .value("OFF", mamba::log_level::off);
 
     py::class_<Context, std::unique_ptr<Context, py::nodelete>> ctx(m, "Context");
-    ctx.def(py::init(
-                [] { return std::unique_ptr<Context, py::nodelete>(&mambapy::singletons.context()); }
-            ))
+    ctx.def(py::init([]() { return std::unique_ptr<Context, py::nodelete>(&Context::instance()); }))
         .def_readwrite("offline", &Context::offline)
         .def_readwrite("local_repodata_ttl", &Context::local_repodata_ttl)
         .def_readwrite("use_index_cache", &Context::use_index_cache)
         .def_readwrite("always_yes", &Context::always_yes)
         .def_readwrite("dry_run", &Context::dry_run)
         .def_readwrite("download_only", &Context::download_only)
+        .def_readwrite("proxy_servers", &Context::proxy_servers)
         .def_readwrite("add_pip_as_python_dependency", &Context::add_pip_as_python_dependency)
         .def_readwrite("envs_dirs", &Context::envs_dirs)
         .def_readwrite("pkgs_dirs", &Context::pkgs_dirs)
@@ -727,15 +554,15 @@ PYBIND11_MODULE(bindings, m)
         )
         .def_property(
             "use_lockfiles",
-            [](Context& context)
+            [](Context& ctx)
             {
-                context.use_lockfiles = is_file_locking_allowed();
-                return context.use_lockfiles;
+                ctx.use_lockfiles = is_file_locking_allowed();
+                return ctx.use_lockfiles;
             },
-            [](Context& context, bool allow)
+            [](Context& ctx, bool allow)
             {
                 allow_file_locking(allow);
-                context.use_lockfiles = allow;
+                ctx.use_lockfiles = allow;
             }
         )
         .def("set_verbosity", &Context::set_verbosity)
@@ -749,7 +576,6 @@ PYBIND11_MODULE(bindings, m)
         .def_readwrite("retry_backoff", &Context::RemoteFetchParams::retry_backoff)
         .def_readwrite("user_agent", &Context::RemoteFetchParams::user_agent)
         // .def_readwrite("read_timeout_secs", &Context::RemoteFetchParams::read_timeout_secs)
-        .def_readwrite("proxy_servers", &Context::RemoteFetchParams::proxy_servers)
         .def_readwrite("connect_timeout_secs", &Context::RemoteFetchParams::connect_timeout_secs);
 
     py::class_<Context::OutputParams>(ctx, "OutputParams")
@@ -773,14 +599,6 @@ PYBIND11_MODULE(bindings, m)
         .def_readwrite("output_params", &Context::output_params)
         .def_readwrite("threads_params", &Context::threads_params)
         .def_readwrite("prefix_params", &Context::prefix_params);
-
-    // TODO: uncomment these parameters once they are made available to Python api.
-    // py::class_<ValidationOptions>(ctx, "ValidationOptions")
-    //     .def_readwrite("safety_checks", &ValidationOptions::safety_checks)
-    //     .def_readwrite("extra_safety_checks", &ValidationOptions::extra_safety_checks)
-    //     .def_readwrite("verify_artifacts", &ValidationOptions::verify_artifacts);
-
-    // ctx.def_readwrite("validation_params", &Context::validation_params);
 
     ////////////////////////////////////////////
     //    Support the old deprecated API     ///
@@ -862,19 +680,6 @@ PYBIND11_MODULE(bindings, m)
             {
                 deprecated("Use `remote_fetch_params.connect_timeout_secs` instead.");
                 self.remote_fetch_params.connect_timeout_secs = cts;
-            }
-        )
-        .def_property(
-            "proxy_servers",
-            [](const Context& self)
-            {
-                deprecated("Use `remote_fetch_params.proxy_servers` instead.");
-                return self.remote_fetch_params.proxy_servers;
-            },
-            [](Context& self, const std::map<std::string, std::string>& proxies)
-            {
-                deprecated("Use `remote_fetch_params.proxy_servers` instead.");
-                self.remote_fetch_params.proxy_servers = proxies;
             }
         );
 
@@ -994,7 +799,7 @@ PYBIND11_MODULE(bindings, m)
         .def(py::init(
             [](const fs::u8path& prefix_path) -> PrefixData
             {
-                auto sres = PrefixData::create(prefix_path, mambapy::singletons.channel_context());
+                auto sres = PrefixData::create(prefix_path, mambapy::singletons().channel_context);
                 if (sres.has_value())
                 {
                     return std::move(sres.value());
@@ -1088,13 +893,6 @@ PYBIND11_MODULE(bindings, m)
         .def_readwrite("keys", &validation::RoleFullKeys::keys)
         .def_readwrite("threshold", &validation::RoleFullKeys::threshold);
 
-    py::class_<validation::TimeRef>(m, "TimeRef")
-        .def(py::init<>())
-        .def(py::init<std::time_t>())
-        .def("set_now", &validation::TimeRef::set_now)
-        .def("set", &validation::TimeRef::set)
-        .def("timestamp", &validation::TimeRef::timestamp);
-
     py::class_<validation::SpecBase, std::shared_ptr<validation::SpecBase>>(m, "SpecBase");
 
     py::class_<validation::RoleBase, std::shared_ptr<validation::RoleBase>>(m, "RoleBase")
@@ -1160,7 +958,7 @@ PYBIND11_MODULE(bindings, m)
     pyChannel
         .def(py::init(
             [](const std::string& value) {
-                return const_cast<Channel*>(&mambapy::singletons.channel_context().make_channel(value)
+                return const_cast<Channel*>(&mambapy::singletons().channel_context.make_channel(value)
                 );
             }
         ))
@@ -1196,24 +994,17 @@ PYBIND11_MODULE(bindings, m)
             }
         );
 
-    m.def("clean", [](int flags) { return clean(mambapy::singletons.config(), flags); });
+    m.def("clean", [](int flags) { return clean(mambapy::singletons().config, flags); });
 
     m.def(
         "get_channels",
         [](const std::vector<std::string>& channel_names)
-        { return mambapy::singletons.channel_context().get_channels(channel_names); }
+        { return mambapy::singletons().channel_context.get_channels(channel_names); }
     );
 
     m.def(
         "transmute",
-        +[](const fs::u8path& pkg_file, const fs::u8path& target, int compression_level, int compression_threads
-         )
-        {
-            const auto extract_options = mamba::ExtractOptions::from_context(
-                mambapy::singletons.context()
-            );
-            return transmute(pkg_file, target, compression_level, compression_threads, extract_options);
-        },
+        &transmute,
         py::arg("source_package"),
         py::arg("destination_package"),
         py::arg("compression_level"),
@@ -1229,7 +1020,7 @@ PYBIND11_MODULE(bindings, m)
     // py::arg("out_package"), py::arg("compression_level"), py::arg("compression_threads") = 1);
 
 
-    m.def("get_virtual_packages", [] { return get_virtual_packages(mambapy::singletons.context()); });
+    m.def("get_virtual_packages", &get_virtual_packages);
 
     m.def("cancel_json_output", [] { Console::instance().cancel_json_print(); });
 

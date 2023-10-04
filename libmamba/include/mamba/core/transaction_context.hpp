@@ -33,19 +33,14 @@ namespace mamba
     public:
 
         TransactionContext();
-
-        explicit TransactionContext(const Context& context);
-
         TransactionContext& operator=(const TransactionContext&);
         TransactionContext(
-            const Context& context,
             const fs::u8path& target_prefix,
             const std::pair<std::string, std::string>& py_versions,
             const std::vector<MatchSpec>& requested_specs
         );
 
         TransactionContext(
-            const Context& context,
             const fs::u8path& target_prefix,
             const fs::u8path& relocate_prefix,
             const std::pair<std::string, std::string>& py_versions,
@@ -55,7 +50,7 @@ namespace mamba
         bool try_pyc_compilation(const std::vector<fs::u8path>& py_files);
         void wait_for_pyc_compilation();
 
-        bool has_python = false;
+        bool has_python;
         fs::u8path target_prefix;
         fs::u8path relocate_prefix;
         fs::u8path site_packages_path;
@@ -71,11 +66,6 @@ namespace mamba
         bool relink_noarch = false;
         std::vector<MatchSpec> requested_specs;
 
-        const Context& context() const
-        {
-            return *m_context;
-        }
-
     private:
 
         bool start_pyc_compilation_process();
@@ -83,10 +73,6 @@ namespace mamba
         std::unique_ptr<reproc::process> m_pyc_process = nullptr;
         std::unique_ptr<TemporaryFile> m_pyc_script_file = nullptr;
         std::unique_ptr<TemporaryFile> m_pyc_compileall = nullptr;
-
-        const Context* m_context = nullptr;  // TODO: replace by a struct with the necessary params.
-
-        void throw_if_not_ready() const;
     };
 }  // namespace mamba
 

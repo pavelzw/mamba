@@ -13,19 +13,18 @@ dependencies:
   - gtest
   - gmock
   - cpp-expected
-  - reproc-cpp >=14.2.4.post0
-  - yaml-cpp >= 0.8.0
+  - reproc-cpp
+  - yaml-cpp
   - cli11 >=2.2
   - spdlog
   - fmt
   - python
   - pip
   - pybind11
-  - pybind11-stubgen <1.0
+  - pybind11-stubgen
   - pytest >=7.3
   - pyyaml
-  - boltons
-  - conda >=23.9.0
+  - conda
   - conda-content-trust
   - cryptography<40.0  # Or breaks conda-content-trust
   - pip:

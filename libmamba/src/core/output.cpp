@@ -24,28 +24,29 @@
 #include "mamba/core/output.hpp"
 #include "mamba/core/tasksync.hpp"
 #include "mamba/core/thread_utils.hpp"
+#include "mamba/core/url.hpp"
 #include "mamba/core/util.hpp"
-#include "mamba/specs/conda_url.hpp"
 #include "mamba/util/string.hpp"
-#include "mamba/util/url_manip.hpp"
 
 #include "progress_bar_impl.hpp"
 
 namespace mamba
 {
-    std::string cut_repo_name(std::string_view url_str)
+    std::string cut_repo_name(const std::string& full_url)
     {
-        auto url = specs::CondaURL::parse(url_str);
-        url.clear_token();
-        if ((url.host() == "conda.anaconda.org") || (url.host() == "repo.anaconda.com"))
+        std::string remaining_url, scheme, auth, token;
+        // TODO maybe add some caching...
+        split_scheme_auth_token(full_url, remaining_url, scheme, auth, token);
+
+        if (util::starts_with(remaining_url, "conda.anaconda.org/"))
         {
-            std::string out = url.clear_path();
-            out = util::strip(out, '/');
-            return out;
+            return remaining_url.substr(19, std::string::npos).data();
         }
-        url.clear_user();
-        url.clear_password();
-        return url.pretty_str(specs::CondaURL::StripScheme::yes, '/');
+        if (util::starts_with(remaining_url, "repo.anaconda.com/"))
+        {
+            return remaining_url.substr(18, std::string::npos).data();
+        }
+        return remaining_url;
     }
 
     /***********
@@ -266,13 +267,6 @@ namespace mamba
     {
     public:
 
-        ConsoleData(const Context& ctx)
-            : m_context(ctx)
-        {
-        }
-
-        const Context& m_context;
-
         std::mutex m_mutex;
         std::unique_ptr<ProgressBarManager> p_progress_bar_manager;
 
@@ -283,17 +277,15 @@ namespace mamba
 
         std::vector<std::string> m_buffer;
 
-        TaskSynchronizer m_tasksync;
+        TaskSynchronizer tasksync;
     };
 
-    Console::Console(const Context& context)
-        : p_data(new ConsoleData{ context })
+    Console::Console()
+        : p_data(new ConsoleData())
     {
-        set_singleton(*this);
-
         init_progress_bar_manager(ProgressBarMode::multi);
         MainExecutor::instance().on_close(
-            p_data->m_tasksync.synchronized([this] { terminate_progress_bar_manager(); })
+            p_data->tasksync.synchronized([this] { terminate_progress_bar_manager(); })
         );
 #ifdef _WIN32
         // initialize ANSI codes on Win terminals
@@ -304,18 +296,14 @@ namespace mamba
 
     Console::~Console()
     {
-        if (!p_data->is_json_print_cancelled && !p_data->json_log.is_null())
+        if (!p_data->is_json_print_cancelled && !p_data->json_log.is_null())  // Note: we cannot
+                                                                              // rely on
+                                                                              // Context::instance()
+                                                                              // to still be valid
+                                                                              // at this point.
         {
             this->json_print();
         }
-
-        clear_singleton();
-    }
-
-
-    const Context& Console::context() const
-    {
-        return p_data->m_context;
     }
 
 
@@ -336,7 +324,8 @@ namespace mamba
 
     void Console::print(std::string_view str, bool force_print)
     {
-        if (force_print || !(context().output_params.quiet || context().output_params.json))
+        if (force_print
+            || !(Context::instance().output_params.quiet || Context::instance().output_params.json))
         {
             const std::lock_guard<std::mutex> lock(p_data->m_mutex);
 
@@ -372,7 +361,7 @@ namespace mamba
 
     bool Console::prompt(std::string_view message, char fallback, std::istream& input_stream)
     {
-        if (instance().context().always_yes)
+        if (Context::instance().always_yes)
         {
             return true;
         }
@@ -418,20 +407,13 @@ namespace mamba
 
     ProgressProxy Console::add_progress_bar(const std::string& name, size_t expected_total)
     {
-        if (context().graphics_params.no_progress_bars)
+        if (Context::instance().graphics_params.no_progress_bars)
         {
             return ProgressProxy();
         }
         else
         {
-            return p_data->p_progress_bar_manager->add_progress_bar(
-                name,
-                {
-                    /* .graphics = */ context().graphics_params,
-                    /* .ascii_only =  */ context().ascii_only,
-                },
-                expected_total
-            );
+            return p_data->p_progress_bar_manager->add_progress_bar(name, expected_total);
         }
     }
 
@@ -484,7 +466,7 @@ namespace mamba
     // is then a JSON object
     void Console::json_write(const nlohmann::json& j)
     {
-        if (context().output_params.json)
+        if (Context::instance().output_params.json)
         {
             nlohmann::json tmp = j.flatten();
             for (auto it = tmp.begin(); it != tmp.end(); ++it)
@@ -497,7 +479,7 @@ namespace mamba
     // append a value to the current entry, which is then a list
     void Console::json_append(const std::string& value)
     {
-        if (context().output_params.json)
+        if (Context::instance().output_params.json)
         {
             p_data->json_log[p_data->json_hier + '/' + std::to_string(p_data->json_index)] = value;
             p_data->json_index += 1;
@@ -507,7 +489,7 @@ namespace mamba
     // append a JSON object to the current entry, which is then a list
     void Console::json_append(const nlohmann::json& j)
     {
-        if (context().output_params.json)
+        if (Context::instance().output_params.json)
         {
             nlohmann::json tmp = j.flatten();
             for (auto it = tmp.begin(); it != tmp.end(); ++it)
@@ -522,7 +504,7 @@ namespace mamba
     // go down in the hierarchy in the "key" entry, create it if it doesn't exist
     void Console::json_down(const std::string& key)
     {
-        if (context().output_params.json)
+        if (Context::instance().output_params.json)
         {
             p_data->json_hier += '/' + key;
             p_data->json_index = 0;
@@ -532,7 +514,7 @@ namespace mamba
     // go up in the hierarchy
     void Console::json_up()
     {
-        if (context().output_params.json && !p_data->json_hier.empty())
+        if (Context::instance().output_params.json && !p_data->json_hier.empty())
         {
             p_data->json_hier.erase(p_data->json_hier.rfind('/'));
         }
@@ -577,7 +559,7 @@ namespace mamba
         {
             case log_level::critical:
                 SPDLOG_CRITICAL(prepend(str, "", std::string(4, ' ').c_str()));
-                if (Console::instance().context().output_params.logging_level != log_level::off)
+                if (Context::instance().output_params.logging_level != log_level::off)
                 {
                     spdlog::dump_backtrace();
                 }

@@ -521,16 +521,16 @@ namespace mamba
      * ProgressBarRepr *
      *******************/
 
-    ProgressBarRepr::ProgressBarRepr(ProgressBarOptions options)
-        : m_style_none(options.graphics.palette.progress_bar_none)
-        , m_style_downloaded(options.graphics.palette.progress_bar_downloaded)
-        , m_style_extracted(options.graphics.palette.progress_bar_extracted)
-        , m_ascii_only(options.ascii_only)
+    ProgressBarRepr::ProgressBarRepr()
+        : m_style_none(Context::instance().graphics_params.palette.progress_bar_none)
+        , m_style_downloaded(Context::instance().graphics_params.palette.progress_bar_downloaded)
+        , m_style_extracted(Context::instance().graphics_params.palette.progress_bar_extracted)
+        , m_ascii_only(Context::instance().ascii_only)
     {
     }
 
     ProgressBarRepr::ProgressBarRepr(ProgressBar* pbar)
-        : ProgressBarRepr(pbar->options())
+        : ProgressBarRepr()
     {
         p_progress_bar = pbar;
     }
@@ -1278,17 +1278,11 @@ namespace mamba
      * ProgressBar *
      ***************/
 
-    ProgressBar::ProgressBar(
-        const std::string& prefix,
-        std::size_t total,
-        ProgressBarOptions options,
-        int width
-    )
+    ProgressBar::ProgressBar(const std::string& prefix, std::size_t total, int width)
         : m_progress(0)
         , m_total(total)
         , m_width(width)
         , m_repr(this)
-        , m_options(options)
         , m_is_spinner(false)
     {
         m_repr.prefix.set_value(prefix);
@@ -1298,11 +1292,6 @@ namespace mamba
     {
         terminate();
         std::lock_guard<std::mutex> lock(m_mutex);
-    }
-
-    const ProgressBarOptions& ProgressBar::options() const
-    {
-        return m_options;
     }
 
     ProgressBar& ProgressBar::set_progress(std::size_t current, std::size_t total)
@@ -1670,13 +1659,8 @@ namespace mamba
      * DefaultProgressBar *
      **********************/
 
-    DefaultProgressBar::DefaultProgressBar(
-        const std::string& prefix,
-        std::size_t total,
-        ProgressBarOptions options,
-        int width
-    )
-        : ProgressBar(prefix, total, options, width)
+    DefaultProgressBar::DefaultProgressBar(const std::string& prefix, std::size_t total, int width)
+        : ProgressBar(prefix, total, width)
     {
     }
 
@@ -1698,10 +1682,9 @@ namespace mamba
         const std::string& prefix,
         AggregatedBarManager* /*manager*/,
         std::size_t total,
-        ProgressBarOptions options,
         int width
     )
-        : ProgressBar(prefix, total, options, width)
+        : ProgressBar(prefix, total, width)
     {
     }
 
@@ -1722,17 +1705,13 @@ namespace mamba
     {
     }
 
-    ProgressProxy MultiBarManager::add_progress_bar(
-        const std::string& name,
-        ProgressBarOptions options,
-        std::size_t expected_total
-    )
+    ProgressProxy
+    MultiBarManager::add_progress_bar(const std::string& name, std::size_t expected_total)
     {
         std::string prefix = name;
         std::lock_guard<std::mutex> lock(m_mutex);
 
-        m_progress_bars.push_back(std::make_unique<DefaultProgressBar>(prefix, expected_total, options)
-        );
+        m_progress_bars.push_back(std::make_unique<DefaultProgressBar>(prefix, expected_total));
         return ProgressProxy(m_progress_bars[m_progress_bars.size() - 1].get());
     }
 
@@ -1837,16 +1816,11 @@ namespace mamba
     {
     }
 
-    ProgressProxy AggregatedBarManager::add_progress_bar(
-        const std::string& prefix,
-        ProgressBarOptions options,
-        std::size_t expected_total
-    )
+    ProgressProxy
+    AggregatedBarManager::add_progress_bar(const std::string& prefix, std::size_t expected_total)
     {
         std::lock_guard<std::mutex> lock(m_mutex);
-        m_progress_bars.push_back(
-            std::make_unique<DefaultProgressBar>(prefix, expected_total, options, 100)
-        );
+        m_progress_bars.push_back(std::make_unique<DefaultProgressBar>(prefix, expected_total, 100));
 
         return ProgressProxy(m_progress_bars[m_progress_bars.size() - 1].get());
     }
@@ -1883,7 +1857,6 @@ namespace mamba
                                        std::make_unique<DefaultProgressBar>(
                                            label,
                                            std::numeric_limits<std::size_t>::max(),
-                                           progress_bar.options(),
                                            100
                                        ) });
         }

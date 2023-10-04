@@ -19,12 +19,8 @@ option(BUILD_LIBMAMBA_TESTS "Build libmamba C++ tests" OFF)
 option(BUILD_MICROMAMBA "Build micromamba" OFF)
 option(BUILD_MAMBA_PACKAGE "Build mamba package utility" OFF)
 option(MAMBA_WARNING_AS_ERROR "Treat compiler warnings as errors" OFF)
-set(MAMBA_LTO "Default" CACHE STRING "Apply Link Time Optimization to targets")
 
 include("cmake/CompilerWarnings.cmake")
-include("cmake/LinkTimeOptimization.cmake")
-include("cmake/Checks.cmake")
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules")
 
 if (MSVC)
     # NOMINMAX : prevent tons of code to be included when having to `#include <windows.h>`
@@ -34,12 +30,8 @@ if (MSVC)
     # /external:I $ENV{CONDA_PREFIX}: consider the conda env prefix libraries headers as "external" to this project.
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /D_CRT_SECURE_NO_WARNINGS /DNOMINMAX /EHsc /Zc:__cplusplus /MP /experimental:external /external:I $ENV{CONDA_PREFIX}")
     # Force release mode to avoid debug libraries to be linked
-    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "The build type")
+    set(CMAKE_BUILD_TYPE Release)
     # add_definitions("-DUNICODE -D_UNICODE")
-    set(
-        CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
-        CACHE STRING "MSVC runtime library"
-    )
 endif()
 
 # Variants

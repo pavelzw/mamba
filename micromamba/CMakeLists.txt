@@ -63,33 +63,25 @@ endif()
 add_executable(micromamba ${MICROMAMBA_SRCS} ${MICROMAMBA_HEADERS})
 
 mamba_target_add_compile_warnings(micromamba WARNING_AS_ERROR ${MAMBA_WARNING_AS_ERROR})
-mamba_target_set_lto(micromamba MODE ${MAMBA_LTO})
 
 if(NOT (TARGET libmamba OR TARGET libmamba-static))
     find_package(libmamba REQUIRED)
 endif ()
 
+find_package(Threads REQUIRED)
+target_link_libraries(micromamba PRIVATE Threads::Threads)
+
 string(TOUPPER "${MICROMAMBA_LINKAGE}" linkage_upper)
 message(STATUS "Micromamba linkage: ${MICROMAMBA_LINKAGE}")
 
 if (${MICROMAMBA_LINKAGE} STREQUAL "STATIC")
-    set(libmamba_target "libmamba-static")
+    target_link_libraries(micromamba PRIVATE libmamba-static)
+    if (WIN32)
+        set_target_properties(micromamba PROPERTIES MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+    endif ()
 else ()
-    set(libmamba_target "libmamba")
+    target_link_libraries(micromamba PRIVATE libmamba)
 endif ()
-
-find_package(Threads REQUIRED)
-find_package(reproc REQUIRED)
-find_package(reproc++ REQUIRED)
-
-target_link_libraries(
-    micromamba
-    PRIVATE
-        ${libmamba_target}
-        Threads::Threads
-        reproc
-        reproc++
-)
 
 set_property(TARGET micromamba PROPERTY CXX_STANDARD 17)
 

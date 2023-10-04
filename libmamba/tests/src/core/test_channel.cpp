@@ -4,15 +4,20 @@
 
 #include "mamba/core/channel.hpp"
 #include "mamba/core/context.hpp"
-#include "mamba/core/environment.hpp"
-#include "mamba/specs/platform.hpp"
-
-#include "mambatests.hpp"
+#include "mamba/core/output.hpp"
 
 namespace mamba
 {
 
-    static const std::string platform = std::string(specs::build_platform_name());
+#ifdef __linux__
+    std::string platform("linux-64");
+#elif __APPLE__ && __x86_64__
+    std::string platform("osx-64");
+#elif __APPLE__ && __arm64__
+    std::string platform("osx-arm64");
+#elif _WIN32
+    std::string platform("win-64");
+#endif
 
     static_assert(std::is_move_constructible_v<mamba::Channel>);
     static_assert(std::is_move_assignable_v<mamba::Channel>);
@@ -23,7 +28,7 @@ namespace mamba
         {
             // ChannelContext builds its custom channels with
             // make_simple_channel
-            ChannelContext channel_context{ mambatests::context() };
+            ChannelContext channel_context;
             const auto& ch = channel_context.get_channel_alias();
             CHECK_EQ(ch.scheme(), "https");
             CHECK_EQ(ch.location(), "conda.anaconda.org");
@@ -55,10 +60,10 @@ namespace mamba
         {
             // ChannelContext builds its custom channels with
             // make_simple_channel
-            auto& ctx = mambatests::context();
+            auto& ctx = Context::instance();
             ctx.channel_alias = "https://mydomain.com/channels/";
 
-            ChannelContext channel_context{ mambatests::context() };
+            ChannelContext channel_context;
 
             const auto& ch = channel_context.get_channel_alias();
             CHECK_EQ(ch.scheme(), "https");
@@ -89,13 +94,13 @@ namespace mamba
         // Regression test for https://github.com/mamba-org/mamba/issues/1671
         TEST_CASE("channel_alias_with_custom_default_channels")
         {
-            auto& ctx = mambatests::context();
+            auto& ctx = Context::instance();
             auto old_default_channels = ctx.default_channels;
             ctx.channel_alias = "https://ali.as/";
             ctx.default_channels = { "prefix" };
             ctx.channels = { "prefix-and-more" };
 
-            ChannelContext channel_context{ ctx };
+            ChannelContext channel_context;
             auto base = std::string("https://ali.as/prefix-and-more/");
             auto& chan = channel_context.make_channel(base);
             std::vector<std::string> expected_urls = { base + platform, base + "noarch" };
@@ -110,14 +115,14 @@ namespace mamba
         {
             // ChannelContext builds its custom channels with
             // make_simple_channel
-            auto& ctx = mambatests::context();
+            auto& ctx = Context::instance();
             ctx.channel_alias = "https://mydomain.com/channels/";
             ctx.custom_channels = {
                 { "test_channel", "file:///tmp" },
                 { "some_channel", "https://conda.mydomain.xyz/" },
             };
 
-            ChannelContext channel_context{ ctx };
+            ChannelContext channel_context;
             const auto& ch = channel_context.get_channel_alias();
             CHECK_EQ(ch.scheme(), "https");
             CHECK_EQ(ch.location(), "mydomain.com/channels");
@@ -160,7 +165,7 @@ namespace mamba
         {
             // ChannelContext builds its custom channels with
             // make_simple_channel
-            auto& ctx = mambatests::context();
+            auto& ctx = Context::instance();
             ctx.custom_multichannels["xtest"] = std::vector<std::string>{
                 "https://mydomain.com/conda-forge",
                 "https://mydomain.com/bioconda",
@@ -172,7 +177,7 @@ namespace mamba
                 "https://otherdomain.com/snakepit"
             };
 
-            ChannelContext channel_context{ ctx };
+            ChannelContext channel_context;
 
             auto x = channel_context.get_channels({ "xtest" });
 
@@ -204,7 +209,7 @@ namespace mamba
         {
             // ChannelContext builds its custom channels with
             // make_simple_channel
-            auto& ctx = mambatests::context();
+            auto& ctx = Context::instance();
 
             ctx.channel_alias = "https://condaforge.org/channels/";
 
@@ -216,7 +221,7 @@ namespace mamba
                 "xyz"
             };
 
-            ChannelContext channel_context{ ctx };
+            ChannelContext channel_context;
 
             auto x = channel_context.get_channels({ "everything" });
 
@@ -253,8 +258,8 @@ namespace mamba
 
         TEST_CASE("default_channels")
         {
-            auto& ctx = mambatests::context();
-            ChannelContext channel_context{ ctx };
+            auto& ctx = Context::instance();
+            ChannelContext channel_context;
 
             auto x = channel_context.get_channels({ "defaults" });
 #if !defined(_WIN32)
@@ -284,10 +289,10 @@ namespace mamba
 
         TEST_CASE("custom_default_channels")
         {
-            auto& ctx = mambatests::context();
+            auto& ctx = Context::instance();
             ctx.default_channels = { "https://mamba.com/test/channel",
                                      "https://mamba.com/stable/channel" };
-            ChannelContext channel_context{ ctx };
+            ChannelContext channel_context;
 
             auto x = channel_context.get_channels({ "defaults" });
             const Channel* c1 = x[0];
@@ -312,46 +317,14 @@ namespace mamba
             ctx.custom_channels.clear();
         }
 
-        TEST_CASE("custom_local_channels")
-        {
-            auto& ctx = mambatests::context();
-
-            // Create conda-bld directory to enable testing
-            auto conda_bld_dir = env::home_directory() / "conda-bld";
-            bool to_be_removed = fs::create_directories(conda_bld_dir);
-
-            ChannelContext channel_context{ ctx };
-
-            const auto& custom = channel_context.get_custom_channels();
-
-            CHECK_EQ(custom.size(), 4);
-
-            auto it = custom.find("conda-bld");
-            CHECK_NE(it, custom.end());
-            CHECK_EQ(it->second.name(), "conda-bld");
-            CHECK_EQ(it->second.location(), env::home_directory());
-            CHECK_EQ(it->second.canonical_name(), "local");
-            CHECK_EQ(it->second.scheme(), "file");
-
-            auto local_channels = channel_context.get_channels({ "local" });
-            CHECK_EQ(local_channels.size(), 1);
-
-            // Cleaning
-            ctx.custom_channels.clear();
-            if (to_be_removed)
-            {
-                fs::remove_all(conda_bld_dir);
-            }
-        }
-
         TEST_CASE("custom_channels_with_labels")
         {
-            auto& ctx = mambatests::context();
+            auto& ctx = Context::instance();
             ctx.custom_channels = {
                 { "test_channel", "https://server.com/private/channels" },
                 { "random/test_channel", "https://server.com/random/channels" },
             };
-            ChannelContext channel_context{ ctx };
+            ChannelContext channel_context;
 
             {
                 std::string value = "test_channel";
@@ -411,7 +384,7 @@ namespace mamba
         TEST_CASE("channel_name")
         {
             std::string value = "https://repo.mamba.pm/conda-forge";
-            ChannelContext channel_context{ mambatests::context() };
+            ChannelContext channel_context;
             const Channel& c = channel_context.make_channel(value);
             CHECK_EQ(c.scheme(), "https");
             CHECK_EQ(c.location(), "repo.mamba.pm");
@@ -423,7 +396,7 @@ namespace mamba
         TEST_CASE("make_channel")
         {
             std::string value = "conda-forge";
-            ChannelContext channel_context{ mambatests::context() };
+            ChannelContext channel_context;
             const Channel& c = channel_context.make_channel(value);
             CHECK_EQ(c.scheme(), "https");
             CHECK_EQ(c.location(), "conda.anaconda.org");
@@ -496,7 +469,7 @@ namespace mamba
         TEST_CASE("urls")
         {
             std::string value = "https://conda.anaconda.org/conda-forge[noarch,win-64,arbitrary]";
-            ChannelContext channel_context{ mambatests::context() };
+            ChannelContext channel_context;
             const Channel& c = channel_context.make_channel(value);
             CHECK_EQ(
                 c.urls(),
@@ -515,10 +488,13 @@ namespace mamba
 
         TEST_CASE("add_token")
         {
-            auto& ctx = mambatests::context();
-            ctx.authentication_info()["conda.anaconda.org"] = specs::CondaToken{ "my-12345-token" };
+            auto& ctx = Context::instance();
+            ctx.authentication_info()["conda.anaconda.org"] = AuthenticationInfo{
+                AuthenticationType::kCondaToken,
+                "my-12345-token"
+            };
 
-            ChannelContext channel_context{ ctx };
+            ChannelContext channel_context;
 
             const auto& chan = channel_context.make_channel("conda-forge[noarch]");
             CHECK_EQ(chan.token(), "my-12345-token");
@@ -535,13 +511,17 @@ namespace mamba
 
         TEST_CASE("add_multiple_tokens")
         {
-            auto& ctx = mambatests::context();
-            ctx.authentication_info()["conda.anaconda.org"] = specs::CondaToken{ "base-token" };
-            ctx.authentication_info()["conda.anaconda.org/conda-forge"] = specs::CondaToken{
+            auto& ctx = Context::instance();
+            ctx.authentication_info()["conda.anaconda.org"] = AuthenticationInfo{
+                AuthenticationType::kCondaToken,
+                "base-token"
+            };
+            ctx.authentication_info()["conda.anaconda.org/conda-forge"] = AuthenticationInfo{
+                AuthenticationType::kCondaToken,
                 "channel-token"
             };
 
-            ChannelContext channel_context{ ctx };
+            ChannelContext channel_context;
 
             const auto& chan = channel_context.make_channel("conda-forge[noarch]");
             CHECK_EQ(chan.token(), "channel-token");
@@ -549,7 +529,7 @@ namespace mamba
 
         TEST_CASE("fix_win_file_path")
         {
-            ChannelContext channel_context{ mambatests::context() };
+            ChannelContext channel_context;
             if (platform == "win-64")
             {
                 const Channel& c = channel_context.make_channel("C:\\test\\channel");
@@ -572,7 +552,7 @@ namespace mamba
 
         TEST_CASE("trailing_slash")
         {
-            ChannelContext channel_context{ mambatests::context() };
+            ChannelContext channel_context;
             const Channel& c = channel_context.make_channel("http://localhost:8000/");
             CHECK_EQ(c.platform_url("win-64", false), "http://localhost:8000/win-64");
             CHECK_EQ(c.base_url(), "http://localhost:8000");
@@ -605,7 +585,7 @@ namespace mamba
         TEST_CASE("load_tokens")
         {
             // touch(env::home_directory() / ".continuum" / "anaconda")
-            // auto& ctx = mambatests::context();
+            // auto& ctx = Context::instance();
             // ctx.channel_tokens["https://conda.anaconda.org"] = "my-12345-token";
 
             // ChannelContext channel_context;

@@ -16,9 +16,9 @@
 
 namespace mamba
 {
-    void update(Configuration& config, bool update_all, bool prune_deps, bool remove_not_specified)
+    void update(Configuration& config, bool update_all, bool prune)
     {
-        auto& ctx = config.context();
+        auto& ctx = Context::instance();
 
         config.at("use_target_prefix_fallback").set_value(true);
         config.at("target_prefix_checks")
@@ -30,7 +30,7 @@ namespace mamba
 
         auto update_specs = config.at("specs").value<std::vector<std::string>>();
 
-        ChannelContext channel_context{ ctx };
+        ChannelContext channel_context;
 
         // add channels from specs
         for (const auto& s : update_specs)
@@ -44,7 +44,7 @@ namespace mamba
         int solver_flag = SOLVER_UPDATE;
 
         MPool pool{ channel_context };
-        MultiPackageCache package_caches(ctx.pkgs_dirs, ctx.validation_params);
+        MultiPackageCache package_caches(ctx.pkgs_dirs);
 
         auto exp_loaded = load_channels(pool, package_caches, 0);
         if (!exp_loaded)
@@ -66,7 +66,7 @@ namespace mamba
             prefix_pkgs.push_back(it.first);
         }
 
-        prefix_data.add_packages(get_virtual_packages(ctx));
+        prefix_data.add_packages(get_virtual_packages());
 
         MRepo(pool, prefix_data);
 
@@ -75,7 +75,7 @@ namespace mamba
             {
                 { SOLVER_FLAG_ALLOW_DOWNGRADE, ctx.allow_downgrade },
                 { SOLVER_FLAG_ALLOW_UNINSTALL, ctx.allow_uninstall },
-                { SOLVER_FLAG_STRICT_REPO_PRIORITY, ctx.channel_priority == ChannelPriority::Strict },
+                { SOLVER_FLAG_STRICT_REPO_PRIORITY, ctx.channel_priority == ChannelPriority::kStrict },
             }
         );
 
@@ -118,7 +118,7 @@ namespace mamba
                 keep_specs.push_back(it.second.name);
             }
             solver_flag |= SOLVER_SOLVABLE_ALL;
-            if (prune_deps)
+            if (prune)
             {
                 solver_flag |= SOLVER_CLEANDEPS;
             }
@@ -127,20 +127,6 @@ namespace mamba
         }
         else
         {
-            if (remove_not_specified)
-            {
-                auto hist_map = prefix_data.history().get_requested_specs_map();
-                std::vector<std::string> remove_specs;
-                for (auto& it : hist_map)
-                {
-                    if (std::find(update_specs.begin(), update_specs.end(), it.second.name)
-                        == update_specs.end())
-                    {
-                        remove_specs.push_back(it.second.name);
-                    }
-                }
-                solver.add_jobs(remove_specs, SOLVER_ERASE | SOLVER_CLEANDEPS);
-            }
             solver.add_jobs(update_specs, solver_flag);
         }
 

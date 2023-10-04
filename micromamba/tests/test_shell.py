@@ -3,7 +3,7 @@ import os
 import platform
 import shutil
 import subprocess
-from pathlib import Path, PureWindowsPath
+from pathlib import Path
 
 import pytest
 
@@ -26,13 +26,12 @@ def skip_if_shell_incompat(shell_type):
 
 @pytest.mark.parametrize(
     "shell_type",
-    ["bash", "posix", "powershell", "cmd.exe", "xonsh", "zsh", "fish", "tcsh", "nu"],
+    ["bash", "posix", "powershell", "cmd.exe", "xonsh", "zsh", "fish", "tcsh"],
 )
 def test_hook(tmp_home, tmp_root_prefix, shell_type):
     res = helpers.shell("hook", "-s", shell_type)
 
     mamba_exe = helpers.get_umamba()
-    mamba_exe_posix = PureWindowsPath(mamba_exe).as_posix()
     # suspend long path support on Windows
     # if platform.system() == "Windows":
     # mamba_exe = f"\\\\?\\{mamba_exe}"
@@ -44,19 +43,15 @@ def test_hook(tmp_home, tmp_root_prefix, shell_type):
         assert not any(li.startswith("## EXPORTS ##") for li in lines)
         assert lines[2].startswith("## AFTER PARAM ####")
     elif shell_type in ("zsh", "bash", "posix"):
-        assert res.count(mamba_exe_posix) == 3
+        assert res.count(mamba_exe) == 3
     elif shell_type == "xonsh":
-        assert res.count(mamba_exe_posix) == 8
+        assert res.count(mamba_exe) == 8
     elif shell_type == "fish":
-        assert res.count(mamba_exe_posix) == 5
+        assert res.count(mamba_exe) == 5
     elif shell_type == "cmd.exe":
         assert res == ""
     elif shell_type == "tcsh":
-        assert res.count(mamba_exe_posix) == 3
-    elif shell_type == "nu":
-        # insert dummy test, as the nu scripts contains
-        # no mention of mamba_exe; path is added in config.nu
-        assert res.count(mamba_exe_posix) == 0
+        assert res.count(mamba_exe) == 3
 
     res = helpers.shell("hook", "-s", shell_type, "--json")
     expected_keys = {"success", "operation", "context", "actions"}

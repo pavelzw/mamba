@@ -120,9 +120,6 @@ set(LIBMAMBA_SOURCES
     ${LIBMAMBA_SOURCE_DIR}/version.cpp
     # C++ utility library
     ${LIBMAMBA_SOURCE_DIR}/util/string.cpp
-    ${LIBMAMBA_SOURCE_DIR}/util/path_manip.cpp
-    ${LIBMAMBA_SOURCE_DIR}/util/url_manip.cpp
-    ${LIBMAMBA_SOURCE_DIR}/util/url.cpp
     # C++ wrapping of libsolv
     ${LIBMAMBA_SOURCE_DIR}/solv-cpp/queue.cpp
     ${LIBMAMBA_SOURCE_DIR}/solv-cpp/pool.cpp
@@ -135,9 +132,7 @@ set(LIBMAMBA_SOURCES
     # C++ wrapping of compression libs (zstd and bzlib)
     ${LIBMAMBA_SOURCE_DIR}/core/compression.cpp
     # Implementation of version and matching specs
-    ${LIBMAMBA_SOURCE_DIR}/specs/archive.cpp
     ${LIBMAMBA_SOURCE_DIR}/specs/platform.cpp
-    ${LIBMAMBA_SOURCE_DIR}/specs/conda_url.cpp
     ${LIBMAMBA_SOURCE_DIR}/specs/version.cpp
     ${LIBMAMBA_SOURCE_DIR}/specs/version_spec.cpp
     ${LIBMAMBA_SOURCE_DIR}/specs/repo_data.cpp
@@ -146,8 +141,6 @@ set(LIBMAMBA_SOURCES
     ${LIBMAMBA_SOURCE_DIR}/core/activation.cpp
     ${LIBMAMBA_SOURCE_DIR}/core/channel.cpp
     ${LIBMAMBA_SOURCE_DIR}/core/context.cpp
-    ${LIBMAMBA_SOURCE_DIR}/core/download.cpp
-    ${LIBMAMBA_SOURCE_DIR}/core/download_progress_bar.cpp
     ${LIBMAMBA_SOURCE_DIR}/core/environment.cpp
     ${LIBMAMBA_SOURCE_DIR}/core/environments_manager.cpp
     ${LIBMAMBA_SOURCE_DIR}/core/error_handling.cpp
@@ -158,6 +151,7 @@ set(LIBMAMBA_SOURCES
     ${LIBMAMBA_SOURCE_DIR}/core/mamba_fs.cpp
     ${LIBMAMBA_SOURCE_DIR}/core/match_spec.cpp
     ${LIBMAMBA_SOURCE_DIR}/core/menuinst.cpp
+    ${LIBMAMBA_SOURCE_DIR}/core/url.cpp
     ${LIBMAMBA_SOURCE_DIR}/core/output.cpp
     ${LIBMAMBA_SOURCE_DIR}/core/package_handling.cpp
     ${LIBMAMBA_SOURCE_DIR}/core/package_cache.cpp
@@ -210,9 +204,7 @@ endforeach()
 set(LIBMAMBA_PUBLIC_HEADERS
     ${LIBMAMBA_INCLUDE_DIR}/mamba/version.hpp
     # Utility library
-    ${LIBMAMBA_INCLUDE_DIR}/mamba/util/json.hpp
     ${LIBMAMBA_INCLUDE_DIR}/mamba/util/deprecation.hpp
-    ${LIBMAMBA_INCLUDE_DIR}/mamba/util/build.hpp
     ${LIBMAMBA_INCLUDE_DIR}/mamba/util/cast.hpp
     ${LIBMAMBA_INCLUDE_DIR}/mamba/util/compare.hpp
     ${LIBMAMBA_INCLUDE_DIR}/mamba/util/functional.hpp
@@ -223,14 +215,8 @@ set(LIBMAMBA_PUBLIC_HEADERS
     ${LIBMAMBA_INCLUDE_DIR}/mamba/util/graph.hpp
     ${LIBMAMBA_INCLUDE_DIR}/mamba/util/iterator.hpp
     ${LIBMAMBA_INCLUDE_DIR}/mamba/util/string.hpp
-    ${LIBMAMBA_INCLUDE_DIR}/mamba/util/path_manip.hpp
-    ${LIBMAMBA_INCLUDE_DIR}/mamba/util/url_manip.hpp
-    ${LIBMAMBA_INCLUDE_DIR}/mamba/util/url.hpp
     # Implementation of version and matching specs
-    ${LIBMAMBA_INCLUDE_DIR}/mamba/specs/authentification_info.hpp
-    ${LIBMAMBA_INCLUDE_DIR}/mamba/specs/archive.hpp
     ${LIBMAMBA_INCLUDE_DIR}/mamba/specs/platform.hpp
-    ${LIBMAMBA_INCLUDE_DIR}/mamba/specs/conda_url.hpp
     ${LIBMAMBA_INCLUDE_DIR}/mamba/specs/version.hpp
     ${LIBMAMBA_INCLUDE_DIR}/mamba/specs/version_spec.hpp
     ${LIBMAMBA_INCLUDE_DIR}/mamba/specs/repo_data.hpp
@@ -239,8 +225,6 @@ set(LIBMAMBA_PUBLIC_HEADERS
     ${LIBMAMBA_INCLUDE_DIR}/mamba/core/channel.hpp
     ${LIBMAMBA_INCLUDE_DIR}/mamba/core/palette.hpp
     ${LIBMAMBA_INCLUDE_DIR}/mamba/core/context.hpp
-    ${LIBMAMBA_INCLUDE_DIR}/mamba/core/download.hpp
-    ${LIBMAMBA_INCLUDE_DIR}/mamba/core/download_progress_bar.hpp
     ${LIBMAMBA_INCLUDE_DIR}/mamba/core/environment.hpp
     ${LIBMAMBA_INCLUDE_DIR}/mamba/core/environments_manager.hpp
     ${LIBMAMBA_INCLUDE_DIR}/mamba/core/error_handling.hpp
@@ -271,6 +255,7 @@ set(LIBMAMBA_PUBLIC_HEADERS
     ${LIBMAMBA_INCLUDE_DIR}/mamba/core/package_download.hpp
     ${LIBMAMBA_INCLUDE_DIR}/mamba/core/transaction.hpp
     ${LIBMAMBA_INCLUDE_DIR}/mamba/core/transaction_context.hpp
+    ${LIBMAMBA_INCLUDE_DIR}/mamba/core/url.hpp
     ${LIBMAMBA_INCLUDE_DIR}/mamba/core/util.hpp
     ${LIBMAMBA_INCLUDE_DIR}/mamba/core/fsutil.hpp
     ${LIBMAMBA_INCLUDE_DIR}/mamba/core/util_os.hpp
@@ -318,15 +303,6 @@ set(LIBMAMBA_PRIVATE_HEADERS
 # Targets and link
 # ================
 
-find_package(fmt REQUIRED)
-find_package(spdlog REQUIRED)
-find_package(tl-expected REQUIRED)
-find_package(nlohmann_json REQUIRED)
-find_package(yaml-cpp REQUIRED)
-find_package(reproc REQUIRED)
-find_package(reproc++ REQUIRED)
-find_package(Libsolv REQUIRED)
-
 macro(libmamba_create_target target_name linkage output_name)
     string(TOUPPER "${linkage}" linkage_upper)
     if (NOT ${linkage_upper} MATCHES "^(SHARED|STATIC)$")
@@ -342,42 +318,13 @@ macro(libmamba_create_target target_name linkage output_name)
         ${LIBMAMBA_SOURCES}
     )
 
-    # Header only libraries are always linked the same way
-    target_link_libraries(
-        ${target_name}
-        PUBLIC
-            tl::expected
-            nlohmann_json::nlohmann_json
-     )
-
     mamba_target_add_compile_warnings(
         ${target_name}
         WARNING_AS_ERROR ${MAMBA_WARNING_AS_ERROR}
     )
-    mamba_target_set_lto(${target_name} MODE ${MAMBA_LTO})
 
     if (${linkage_upper} STREQUAL "STATIC")
         message("   -> Statically linking against libmamba (static) dependencies")
-
-        mamba_target_check_type(yaml-cpp::yaml-cpp STATIC_LIBRARY FATAL_ERROR)
-        mamba_target_check_type(reproc STATIC_LIBRARY FATAL_ERROR)
-        mamba_target_check_type(reproc++ STATIC_LIBRARY FATAL_ERROR)
-
-        target_compile_definitions(${target_name} PUBLIC SPDLOG_FMT_EXTERNAL)
-
-        target_link_libraries(
-            ${target_name}
-            PUBLIC
-                fmt::fmt-header-only
-                spdlog::spdlog_header_only
-                yaml-cpp::yaml-cpp
-                solv::libsolv_static
-                solv::libsolvext_static
-            PRIVATE
-                reproc
-                reproc++
-        )
-
         if (UNIX)
 
             set(REQUIRED_STATIC_DEPS
@@ -395,6 +342,9 @@ macro(libmamba_create_target target_name linkage output_name)
 
                 libarchive.a
 
+                libsolv.a
+                libsolvext.a
+
                 libiconv.a
                 libbz2.a
                 liblz4.a
@@ -403,6 +353,11 @@ macro(libmamba_create_target target_name linkage output_name)
                 liblzma.a
 
                 libnghttp2.a
+
+                libyaml-cpp.a
+
+                libreproc++.a
+                libreproc.a
             )
             if (APPLE)
                 set(REQUIRED_STATIC_DEPS ${REQUIRED_STATIC_DEPS} libc++.a)
@@ -418,11 +373,7 @@ macro(libmamba_create_target target_name linkage output_name)
                 find_library(TMP_LIB
                     NAMES "${LIB}"
                 )
-                if (NOT ${TMP_LIB} STREQUAL "TMP_LIB-NOTFOUND")
-                    list(APPEND STATIC_DEPS "${TMP_LIB}")
-                else ()
-                    list(APPEND STATIC_DEPS "${LIB}-NOTFOUND")
-                endif ()
+                list(APPEND STATIC_DEPS "${TMP_LIB}")
             endforeach(LIB)
 
             if (APPLE)
@@ -446,26 +397,43 @@ macro(libmamba_create_target target_name linkage output_name)
                 target_link_options(${target_name} PUBLIC -static-libstdc++ -static-libgcc)
             endif()
 
+            find_package(fmt REQUIRED)
+            find_package(spdlog CONFIG REQUIRED)
+            find_package(tl-expected REQUIRED)
+
+            add_compile_definitions(SPDLOG_FMT_EXTERNAL)
             target_link_libraries(
               ${target_name}
               PUBLIC
                 ${STATIC_DEPS}
                 ${MAMBA_FORCE_DYNAMIC_LIBS}
+                spdlog::spdlog_header_only
+                fmt::fmt-header-only
              )
 
         elseif (WIN32)
 
-            set(CMAKE_PREFIX_PATH "$ENV{VCPKG_ROOT}/installed/x64-windows-static-md/")
+            set(CMAKE_PREFIX_PATH "$ENV{VCPKG_ROOT}/installed/x64-windows-static/")
+            set_target_properties(${target_name} PROPERTIES MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
             # For Windows we have a vcpkg based build system right now.
             find_package(LibArchive REQUIRED)
             find_package(CURL CONFIG REQUIRED)
+            find_package(yaml-cpp CONFIG REQUIRED)
+            find_package(nlohmann_json CONFIG REQUIRED)
+            find_package(fmt REQUIRED)
+            find_package(spdlog CONFIG REQUIRED)
             find_library(LIBLZMA_LIBRARIES lzma REQUIRED)
             find_library(LZ4_LIBRARY NAMES lz4)
             find_library(LZO2_LIBRARY NAMES lzo2)
             find_package(zstd CONFIG REQUIRED)
             find_library(BZIP2_LIBRARIES NAMES bz2)
             find_library(CRYPTO_LIBRARIES NAMES libcrypto)
+
+            find_library(LIBSOLV_BUILD_STATICRARIES NAMES solv)
+            find_library(LIBSOLVEXT_BUILD_STATICRARIES NAMES solvext)
+            find_package(reproc++ CONFIG REQUIRED)
+            find_package(tl-expected REQUIRED)
 
             find_library(LIBXML2_LIBRARY NAMES libxml2)
             find_library(ICONV_LIBRARY NAMES libiconv iconv)
@@ -484,52 +452,70 @@ macro(libmamba_create_target target_name linkage output_name)
                 ${BZIP2_LIBRARIES}
                 ${LIBLZMA_LIBRARIES}
                 CURL::libcurl
+                nlohmann_json::nlohmann_json
+                fmt::fmt-header-only
+                # Since conda-forge spdlog is built with a bundled version of fmt we use the
+                # header only version to avoid chasing after the correct fmt version mathching
+                # the one used in the bundle
+                spdlog::spdlog_header_only
+                yaml-cpp
+                ${LIBSOLV_BUILD_STATICRARIES}
+                ${LIBSOLVEXT_BUILD_STATICRARIES}
                 ${sodium_LIBRARY_RELEASE}
+                reproc++
+                reproc
+                tl::expected
             )
 
             add_compile_definitions(
+              SPDLOG_FMT_EXTERNAL
               LIBARCHIVE_STATIC
               CURL_STATICLIB
+              SOLV_BUILD_STATIC
             )
             include_directories($ENV{CONDA_PREFIX}/Library/include/)
-            include_directories($ENV{VCPKG_ROOT}/installed/x64-windows-static-md/include/)
+            include_directories($ENV{VCPKG_ROOT}/installed/x64-windows-static/include/)
         endif()
     else ()
         message("   -> Dynamically linking against libmamba (shared) dependencies")
 
-        mamba_target_check_type(yaml-cpp::yaml-cpp SHARED_LIBRARY WARNING)
-
+        find_library(LIBSOLV_LIBRARIES NAMES solv)
+        find_library(LIBSOLVEXT_LIBRARIES NAMES solvext)
         find_package(CURL REQUIRED)
         find_package(LibArchive REQUIRED)
         find_package(zstd REQUIRED)
         find_package(BZip2 REQUIRED)
         find_package(OpenSSL REQUIRED)
+        find_package(yaml-cpp CONFIG REQUIRED)
+        find_package(reproc++ CONFIG REQUIRED)
+        find_package(tl-expected REQUIRED)
+        find_package(fmt REQUIRED)
+        find_package(spdlog CONFIG REQUIRED)
 
-        target_compile_definitions(${target_name} PUBLIC SPDLOG_FMT_EXTERNAL)
-
-        target_link_libraries(
-            ${target_name}
-            PUBLIC
-                ${LIBSOLV_LIBRARIES}
-                ${LIBSOLVEXT_LIBRARIES}
-                ${LibArchive_LIBRARIES}
-                zstd::libzstd_shared
-                ${CURL_LIBRARIES}
-                ${OPENSSL_LIBRARIES}
-                zstd::libzstd_shared
-                BZip2::BZip2
-                yaml-cpp::yaml-cpp
-                fmt::fmt
-                # Since conda-forge spdlog is built with a bundled version of fmt we use the
-                # header only version to avoid chasing after the correct fmt version mathching
-                # the one used in the bundle
-                spdlog::spdlog_header_only
-                solv::libsolv
-                solv::libsolvext
-            PRIVATE
-                reproc
-                reproc++
+        set(LIBMAMBA_LIBRARIES_DEPS
+            ${LIBSOLV_LIBRARIES}
+            ${LIBSOLVEXT_LIBRARIES}
+            ${LibArchive_LIBRARIES}
+            zstd::libzstd_shared
+            ${CURL_LIBRARIES}
+            ${OPENSSL_LIBRARIES}
+            zstd::libzstd_shared
+            BZip2::BZip2
+            yaml-cpp
+            reproc++
+            reproc
+            tl::expected
+            fmt::fmt
+            # Since conda-forge spdlog is built with a bundled version of fmt we use the
+            # header only version to avoid chasing after the correct fmt version mathching
+            # the one used in the bundle
+            spdlog::spdlog_header_only
         )
+
+        add_compile_definitions(SPDLOG_FMT_EXTERNAL)
+        target_link_libraries(${target_name} PUBLIC
+                              ${LIBMAMBA_LIBRARIES_DEPS}
+                              ${MAMBA_FORCE_DYNAMIC_LIBS})
     endif ()
 
     target_compile_features(${target_name} PUBLIC cxx_std_17)
@@ -583,9 +569,12 @@ macro(libmamba_create_target target_name linkage output_name)
     endif()
 
     if (${linkage_upper} STREQUAL "STATIC")
+        find_package(nlohmann_json CONFIG REQUIRED)
         find_package(Threads REQUIRED)
 
-        target_link_libraries(${target_name} PUBLIC Threads::Threads)
+        target_link_libraries(${target_name} PUBLIC
+                              nlohmann_json::nlohmann_json
+                              Threads::Threads)
     endif ()
 
     list(APPEND libmamba_targets ${target_name})

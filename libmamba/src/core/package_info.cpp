@@ -13,7 +13,6 @@
 #include <fmt/format.h>
 
 #include "mamba/core/package_info.hpp"
-#include "mamba/specs/archive.hpp"
 #include "mamba/util/string.hpp"
 
 namespace mamba
@@ -278,12 +277,12 @@ namespace mamba
 
     std::string PackageInfo::str() const
     {
-        return std::string(specs::strip_archive_extension(fn));
+        return util::concat(name, "-", version, "-", build_string);
     }
 
     std::string PackageInfo::long_str() const
     {
         // TODO channel contains subdir right now?!
-        return util::concat(channel, "::", str());
+        return util::concat(channel, "::", name, "-", version, "-", build_string);
     }
 }  // namespace mamba

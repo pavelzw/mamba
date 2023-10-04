@@ -237,17 +237,6 @@ namespace mamba::util
     }
 
     // TODO(C++20) This is a method of string_view
-    bool contains(std::string_view str, char c)
-    {
-        return str.find(c) != std::string::npos;
-    }
-
-    bool contains(char c1, char c2)
-    {
-        return c1 == c2;
-    }
-
-    // TODO(C++20) This is a method of string_view
     bool ends_with(std::string_view str, std::string_view suffix)
     {
         return str.size() >= suffix.size()
@@ -271,55 +260,15 @@ namespace mamba::util
         return (!str.empty()) && (str.front() == c);
     }
 
-    /*************************************************
-     *  Implementation of starts_with any functions  *
-     *************************************************/
+    /*********************************************
+     *  Implementation of starts_with functions  *
+     *********************************************/
 
     template bool any_starts_with(const std::vector<std::string>&, std::string_view);
     template bool any_starts_with(const std::vector<std::string_view>&, std::string_view);
 
     template bool starts_with_any(std::string_view, const std::vector<std::string>&);
     template bool starts_with_any(std::string_view, const std::vector<std::string_view>&);
-
-    /******************************************************
-     *  Implementation of remove prefix/suffix functions  *
-     ******************************************************/
-
-    std::string_view remove_prefix(std::string_view str, std::string_view prefix)
-    {
-        if (starts_with(str, prefix))
-        {
-            return str.substr(prefix.size());
-        }
-        return str;
-    }
-
-    std::string_view remove_prefix(std::string_view str, std::string_view::value_type c)
-    {
-        if (starts_with(str, c))
-        {
-            return str.substr(1);
-        }
-        return str;
-    }
-
-    std::string_view remove_suffix(std::string_view str, std::string_view suffix)
-    {
-        if (ends_with(str, suffix))
-        {
-            return str.substr(0, str.size() - suffix.size());
-        }
-        return str;
-    }
-
-    std::string_view remove_suffix(std::string_view str, std::string_view::value_type c)
-    {
-        if (ends_with(str, c))
-        {
-            return str.substr(0, str.size() - 1);
-        }
-        return str;
-    }
 
     /***************************************
      *  Implementation of strip functions  *

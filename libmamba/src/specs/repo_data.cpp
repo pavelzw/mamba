@@ -8,8 +8,39 @@
 #include <string_view>
 #include <utility>
 
+#include <nlohmann/json.hpp>
+
 #include "mamba/specs/repo_data.hpp"
-#include "mamba/util/json.hpp"
+
+NLOHMANN_JSON_NAMESPACE_BEGIN
+template <typename T>
+struct adl_serializer<std::optional<T>>
+{
+    static void to_json(json& j, const std::optional<T>& opt)
+    {
+        if (opt.has_value())
+        {
+            j = opt.value();
+        }
+        else
+        {
+            j = nullptr;
+        }
+    }
+
+    static void from_json(const json& j, std::optional<T>& opt)
+    {
+        if (!j.is_null())
+        {
+            opt = j.template get<T>();
+        }
+        else
+        {
+            opt = std::nullopt;
+        }
+    }
+};
+NLOHMANN_JSON_NAMESPACE_END
 
 namespace mamba::specs
 {
@@ -45,15 +76,29 @@ namespace mamba::specs
         j["timestamp"] = p.timestamp;
     }
 
+    namespace
+    {
+        template <typename Json, std::size_t N, typename T>
+        void deserialize_maybe_missing(Json&& j, const char (&name)[N], T& t)
+        {
+            if (j.contains(name))
+            {
+                t = std::forward<Json>(j)[name].template get<T>();
+            }
+            else
+            {
+                t = {};
+            }
+        }
+    }
+
     void from_json(const nlohmann::json& j, RepoDataPackage& p)
     {
-        using mamba::util::deserialize_maybe_missing;
-
         p.name = j.at("name");
         p.version = Version::parse(j.at("version").template get<std::string_view>());
         p.build_string = j.at("build");
         p.build_number = j.at("build_number");
-        deserialize_maybe_missing(j, "subdir", p.subdir);
+        p.subdir = j.at("subdir");
         deserialize_maybe_missing(j, "md5", p.md5);
         deserialize_maybe_missing(j, "sha256", p.sha256);
         deserialize_maybe_missing(j, "legacy_bz2_md5", p.legacy_bz2_md5);
@@ -114,17 +159,16 @@ namespace mamba::specs
         j["version"] = data.version;
         j["info"] = data.info;
         j["packages"] = data.packages;
-        j["packages.conda"] = data.conda_packages;
+        j["conda_packages"] = data.conda_packages;
         j["removed"] = data.removed;
     }
 
     void from_json(const nlohmann::json& j, RepoData& data)
     {
-        using mamba::util::deserialize_maybe_missing;
         deserialize_maybe_missing(j, "version", data.version);
         deserialize_maybe_missing(j, "info", data.info);
         deserialize_maybe_missing(j, "packages", data.packages);
-        deserialize_maybe_missing(j, "packages.conda", data.conda_packages);
+        deserialize_maybe_missing(j, "conda_packages", data.conda_packages);
         deserialize_maybe_missing(j, "removed", data.removed);
     }
 }

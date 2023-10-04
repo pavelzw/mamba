@@ -54,7 +54,7 @@ namespace mamba
         m_filename = pkg_info.fn;
 
         // only do this for micromamba for now
-        if (channel_context.context().command_params.is_micromamba)
+        if (Context::instance().command_params.is_micromamba)
         {
             m_url = channel_context.make_channel(pkg_info.url).urls(true)[0];
         }
@@ -69,7 +69,7 @@ namespace mamba
         m_sha256 = pkg_info.sha256;
         m_md5 = pkg_info.md5;
 
-        auto& ctx = channel_context.context();
+        auto& ctx = Context::instance();
         m_has_progress_bars = !(
             ctx.graphics_params.no_progress_bars || ctx.output_params.quiet || ctx.output_params.json
         );
@@ -185,7 +185,7 @@ namespace mamba
         };
     }
 
-    bool PackageDownloadExtractTarget::extract(const Context& context)
+    bool PackageDownloadExtractTarget::extract()
     {
         // Extracting is __not__ yet thread safe it seems...
         interruption_point();
@@ -230,17 +230,15 @@ namespace mamba
                     fs::remove_all(extract_path);
                 }
 
-                const auto extract_options = mamba::ExtractOptions::from_context(context);
-
                 // Use non-subproc version if concurrency is disabled to avoid
                 // any potential subprocess issues
                 if (DownloadExtractSemaphore::get_max() == 1)
                 {
-                    mamba::extract(m_tarball_path, extract_path, extract_options);
+                    mamba::extract(m_tarball_path, extract_path);
                 }
                 else
                 {
-                    mamba::extract_subproc(m_tarball_path, extract_path, extract_options);
+                    mamba::extract_subproc(m_tarball_path, extract_path);
                 }
                 // mamba::extract(m_tarball_path, extract_path);
                 interruption_point();
@@ -271,14 +269,14 @@ namespace mamba
         return true;
     }
 
-    bool PackageDownloadExtractTarget::extract_from_cache(const Context& context)
+    bool PackageDownloadExtractTarget::extract_from_cache()
     {
-        this->extract(context);
+        this->extract();
         m_finished = true;
         return true;
     }
 
-    bool PackageDownloadExtractTarget::validate_extract(const Context& context)
+    bool PackageDownloadExtractTarget::validate_extract()
     {
         using std::chrono::nanoseconds;
 
@@ -308,12 +306,12 @@ namespace mamba
         }
         LOG_DEBUG << "'" << m_tarball_path.string() << "' successfully validated";
 
-        bool result = this->extract(context);
+        bool result = this->extract();
         m_finished = true;
         return result;
     }
 
-    bool PackageDownloadExtractTarget::finalize_callback(const DownloadTarget& target)
+    bool PackageDownloadExtractTarget::finalize_callback(const DownloadTarget&)
     {
         if (m_has_progress_bars)
         {
@@ -330,9 +328,7 @@ namespace mamba
         }
 
         LOG_INFO << "Download finished, validating '" << m_tarball_path.string() << "'";
-        MainExecutor::instance().schedule(
-            m_tasksync.synchronized([&] { validate_extract(target.context()); })
-        );
+        MainExecutor::instance().schedule(&PackageDownloadExtractTarget::validate_extract, this);
 
         return true;
     }
@@ -368,7 +364,7 @@ namespace mamba
     }
 
     // todo remove cache from this interface
-    DownloadTarget* PackageDownloadExtractTarget::target(Context& context, MultiPackageCache& caches)
+    DownloadTarget* PackageDownloadExtractTarget::target(MultiPackageCache& caches)
     {
         // tarball can be removed, it's fine if only the correct dest dir exists
         // 1. If there is extracted cache, use it, otherwise next.
@@ -400,7 +396,8 @@ namespace mamba
                 m_tarball_path = tarball_cache / m_filename;
                 m_validation_result = VALIDATION_RESULT::VALID;
                 MainExecutor::instance().schedule(
-                    m_tasksync.synchronized([&] { extract_from_cache(context); })
+                    &PackageDownloadExtractTarget::extract_from_cache,
+                    this
                 );
                 LOG_DEBUG << "Using cached tarball '" << m_filename << "'";
                 return nullptr;
@@ -412,12 +409,7 @@ namespace mamba
                 LOG_DEBUG << "Adding '" << m_name << "' to download targets from '" << m_url << "'";
 
                 m_tarball_path = m_cache_path / m_filename;
-                m_target = std::make_unique<DownloadTarget>(
-                    context,
-                    m_name,
-                    m_url,
-                    m_tarball_path.string()
-                );
+                m_target = std::make_unique<DownloadTarget>(m_name, m_url, m_tarball_path.string());
                 m_target->set_finalize_callback(&PackageDownloadExtractTarget::finalize_callback, this);
                 m_target->set_expected_size(m_expected_size);
                 if (m_has_progress_bars)

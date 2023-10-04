@@ -15,7 +15,6 @@ namespace mamba::solv
     using DependencyId = ::Id;
     using RepoId = ::Id;
     using SolvableId = ::Id;
-    using OffsetId = ::Id;
     using RuleId = ::Id;
     using ProblemId = ::Id;
     using DependencyMarker = ::Id;

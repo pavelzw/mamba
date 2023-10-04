@@ -33,11 +33,7 @@ set_package_command(CLI::App* subcom, Configuration& config)
 
             Console::stream() << "Extracting " << fs::absolute(infile) << " to "
                               << fs::absolute(dest) << std::endl;
-            extract(
-                fs::absolute(infile),
-                fs::absolute(dest),
-                ExtractOptions::from_context(config.context())
-            );
+            extract(fs::absolute(infile), fs::absolute(dest));
         }
     );
 
@@ -119,13 +115,7 @@ set_package_command(CLI::App* subcom, Configuration& config)
             }
             Console::stream() << "Transmuting " << fs::absolute(infile) << " to " << dest
                               << std::endl;
-            transmute(
-                fs::absolute(infile),
-                fs::absolute(dest),
-                compression_level,
-                compression_threads,
-                ExtractOptions::from_context(config.context())
-            );
+            transmute(fs::absolute(infile), fs::absolute(dest), compression_level, compression_threads);
         }
     );
 }

@@ -13,13 +13,12 @@
 #include <thread>
 #include <vector>
 
-#include "mamba/core/error_handling.hpp"
 
 namespace mamba
 {
-    struct MainExecutorError : public mamba_error
+    class MainExecutorError : public std::runtime_error
     {
-        using mamba_error::mamba_error;
+        using std::runtime_error::runtime_error;
     };
 
     // Main execution resource (for example threads) handler for this library.

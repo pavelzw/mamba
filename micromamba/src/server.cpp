@@ -38,7 +38,7 @@ load_pool(
     mamba::ChannelContext& channel_context
 )
 {
-    auto& ctx = channel_context.context();
+    auto& ctx = Context::instance();
     ctx.channels = channels;
     mamba::MPool pool{ channel_context };
     auto exp_load = load_channels(pool, package_caches, false);
@@ -56,7 +56,7 @@ handle_solve_request(
     mamba::ChannelContext& channel_context
 )
 {
-    auto& ctx = channel_context.context();
+    auto& ctx = Context::instance();
 
     struct cache
     {
@@ -83,7 +83,7 @@ handle_solve_request(
     }
 
     std::string cache_key = mamba::util::join(", ", channels) + fmt::format(", {}", platform);
-    MultiPackageCache package_caches(ctx.pkgs_dirs, ctx.validation_params);
+    MultiPackageCache package_caches(ctx.pkgs_dirs);
 
     if (cache_map.find(cache_key) == cache_map.end())
     {
@@ -125,7 +125,6 @@ handle_solve_request(
         auto elements = util::split(s, "=");
         vpacks.push_back(detail::make_virtual_package(
             elements[0],
-            ctx.platform,
             elements.size() >= 2 ? elements[1] : "",
             elements.size() >= 3 ? elements[2] : ""
         ));
@@ -138,7 +137,7 @@ handle_solve_request(
         *cache_entry.pool,
         { { SOLVER_FLAG_ALLOW_UNINSTALL, ctx.allow_uninstall },
           { SOLVER_FLAG_ALLOW_DOWNGRADE, ctx.allow_downgrade },
-          { SOLVER_FLAG_STRICT_REPO_PRIORITY, ctx.channel_priority == ChannelPriority::Strict } }
+          { SOLVER_FLAG_STRICT_REPO_PRIORITY, ctx.channel_priority == ChannelPriority::kStrict } }
     );
 
     solver.add_jobs(specs, SOLVER_INSTALL);
@@ -219,7 +218,7 @@ set_server_command(CLI::App* subcom, mamba::Configuration& config)
     subcom->callback(
         [&config]
         {
-            mamba::ChannelContext channel_context{ config.context() };
+            mamba::ChannelContext channel_context;
             return run_server(port, channel_context, config);
         }
     );

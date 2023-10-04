@@ -12,10 +12,8 @@
 #include "mamba/core/fetch.hpp"
 #include "mamba/core/output.hpp"
 #include "mamba/core/thread_utils.hpp"
-#include "mamba/util/build.hpp"
+#include "mamba/core/url.hpp"
 #include "mamba/util/string.hpp"
-#include "mamba/util/url.hpp"
-#include "mamba/util/url_manip.hpp"
 
 #include "compression.hpp"
 #include "curl.hpp"
@@ -28,7 +26,6 @@ namespace mamba
      *****************************/
 
     void get_config(
-        const Context& context,
         bool& set_low_speed_opt,
         bool& set_ssl_no_revoke,
         long& connect_timeout_secs,
@@ -47,35 +44,29 @@ namespace mamba
         std::string ssl_no_revoke_env = std::getenv("MAMBA_SSL_NO_REVOKE")
                                             ? std::getenv("MAMBA_SSL_NO_REVOKE")
                                             : "0";
-        set_ssl_no_revoke = (context.remote_fetch_params.ssl_no_revoke || (ssl_no_revoke_env != "0"));
-        connect_timeout_secs = context.remote_fetch_params.connect_timeout_secs;
-        ssl_verify = context.remote_fetch_params.ssl_verify;
+        set_ssl_no_revoke = (Context::instance().remote_fetch_params.ssl_no_revoke || (ssl_no_revoke_env != "0"));
+        connect_timeout_secs = Context::instance().remote_fetch_params.connect_timeout_secs;
+        ssl_verify = Context::instance().remote_fetch_params.ssl_verify;
     }
 
-    std::size_t get_default_retry_timeout(const Context& context)
+    std::size_t get_default_retry_timeout()
     {
-        return static_cast<std::size_t>(context.remote_fetch_params.retry_timeout);
+        return static_cast<std::size_t>(Context::instance().remote_fetch_params.retry_timeout);
     }
 
     /*********************************
      * DownloadTarget implementation *
      *********************************/
 
-    DownloadTarget::DownloadTarget(
-        Context& context,
-        const std::string& name,
-        const std::string& url,
-        const std::string& filename
-    )
-        : m_context(context)
-        , m_name(name)
+    DownloadTarget::DownloadTarget(const std::string& name, const std::string& url, const std::string& filename)
+        : m_name(name)
         , m_filename(filename)
-        , m_url(util::file_uri_unc2_to_unc4(url))
+        , m_url(unc_url(url))
         , m_http_status(10000)
         , m_downloaded_size(0)
         , m_effective_url(nullptr)
         , m_expected_size(0)
-        , m_retry_wait_seconds(get_default_retry_timeout(context))
+        , m_retry_wait_seconds(get_default_retry_timeout())
         , m_retries(0)
         , m_has_progress_bar(false)
         , m_ignore_failure(false)
@@ -113,7 +104,7 @@ namespace mamba
 
     void DownloadTarget::init_curl_ssl()
     {
-        auto& ctx = m_context;
+        auto& ctx = Context::instance();
 
         if (!ctx.remote_fetch_params.curl_initialized)
         {
@@ -152,7 +143,7 @@ namespace mamba
                 ctx.remote_fetch_params.ssl_verify = std::getenv("REQUESTS_CA_BUNDLE");
                 LOG_INFO << "Using REQUESTS_CA_BUNDLE " << ctx.remote_fetch_params.ssl_verify;
             }
-            else if (ctx.remote_fetch_params.ssl_verify == "<system>" && util::on_linux)
+            else if (ctx.remote_fetch_params.ssl_verify == "<system>" && on_linux)
             {
                 std::array<std::string, 6> cert_locations{
                     "/etc/ssl/certs/ca-certificates.crt",  // Debian/Ubuntu/Gentoo etc.
@@ -190,7 +181,7 @@ namespace mamba
         bool set_low_speed_opt, set_ssl_no_revoke;
         long connect_timeout_secs;
         std::string ssl_verify;
-        get_config(m_context, set_low_speed_opt, set_ssl_no_revoke, connect_timeout_secs, ssl_verify);
+        get_config(set_low_speed_opt, set_ssl_no_revoke, connect_timeout_secs, ssl_verify);
 
         // Configure curl handle
         m_curl_handle->configure_handle(
@@ -198,7 +189,7 @@ namespace mamba
             set_low_speed_opt,
             connect_timeout_secs,
             set_ssl_no_revoke,
-            proxy_match(url, context().remote_fetch_params.proxy_servers),
+            proxy_match(url),
             ssl_verify
         );
 
@@ -240,31 +231,29 @@ namespace mamba
 
         std::string user_agent = fmt::format(
             "User-Agent: {} {}",
-            m_context.remote_fetch_params.user_agent,
+            Context::instance().remote_fetch_params.user_agent,
             curl_version()
         );
 
         m_curl_handle->add_header(user_agent);
         m_curl_handle->set_opt_header();
-        m_curl_handle->set_opt(CURLOPT_VERBOSE, m_context.output_params.verbosity >= 2);
+        m_curl_handle->set_opt(CURLOPT_VERBOSE, Context::instance().output_params.verbosity >= 2);
 
         // get url host
-        const auto url_parsed = util::URL::parse(url);
-        auto host = url_parsed.host();
-        const auto port = url_parsed.port();
+        const auto url_handler = URLHandler(url);
+        auto host = url_handler.host();
+        const auto port = url_handler.port();
         if (port.size())
         {
             host += ":" + port;
         }
 
-        if (m_context.authentication_info().count(host))
+        if (Context::instance().authentication_info().count(host))
         {
-            const auto& auth = m_context.authentication_info().at(host);
-            if (std::holds_alternative<specs::BearerToken>(auth))
+            const auto& auth = Context::instance().authentication_info().at(host);
+            if (auth.type == AuthenticationType::kBearerToken)
             {
-                m_curl_handle->add_header(
-                    fmt::format("Authorization: Bearer {}", std::get<specs::BearerToken>(auth).token)
-                );
+                m_curl_handle->add_header(fmt::format("Authorization: Bearer {}", auth.value));
             }
         }
 
@@ -280,7 +269,7 @@ namespace mamba
             return false;
         }
 
-        return m_retries < size_t(m_context.remote_fetch_params.max_retries)
+        return m_retries < size_t(Context::instance().remote_fetch_params.max_retries)
                && (m_http_status == 413 || m_http_status == 429 || m_http_status >= 500)
                && !util::starts_with(m_url, "file://");
     }
@@ -305,7 +294,8 @@ namespace mamba
                 m_curl_handle->set_opt(CURLOPT_XFERINFODATA, this);
             }
             m_retry_wait_seconds = m_retry_wait_seconds
-                                   * static_cast<std::size_t>(m_context.remote_fetch_params.retry_backoff
+                                   * static_cast<std::size_t>(
+                                       Context::instance().remote_fetch_params.retry_backoff
                                    );
             m_next_retry = now + std::chrono::seconds(m_retry_wait_seconds);
             m_retries++;
@@ -572,14 +562,14 @@ namespace mamba
         bool set_low_speed_opt, set_ssl_no_revoke;
         long connect_timeout_secs;
         std::string ssl_verify;
-        get_config(m_context, set_low_speed_opt, set_ssl_no_revoke, connect_timeout_secs, ssl_verify);
+        get_config(set_low_speed_opt, set_ssl_no_revoke, connect_timeout_secs, ssl_verify);
 
         return curl::check_resource_exists(
             m_url,
             set_low_speed_opt,
             connect_timeout_secs,
             set_ssl_no_revoke,
-            proxy_match(m_url, context().remote_fetch_params.proxy_servers),
+            proxy_match(m_url),
             ssl_verify
         );
     }
@@ -654,7 +644,7 @@ namespace mamba
                                        .value_or(0);
             if (!m_retry_wait_seconds)
             {
-                m_retry_wait_seconds = get_default_retry_timeout(m_context);
+                m_retry_wait_seconds = get_default_retry_timeout();
             }
 
             m_next_retry = std::chrono::steady_clock::now()
@@ -732,13 +722,16 @@ namespace mamba
      * MultiDownloadTarget implementation *
      **************************************/
 
-    MultiDownloadTarget::MultiDownloadTarget(const Context& context)
-        : m_context(context)
+    MultiDownloadTarget::MultiDownloadTarget()
     {
-        p_curl_handle = std::make_unique<CURLMultiHandle>(m_context.threads_params.download_threads);
+        p_curl_handle = std::make_unique<CURLMultiHandle>(
+            Context::instance().threads_params.download_threads
+        );
     }
 
-    MultiDownloadTarget::~MultiDownloadTarget() = default;
+    MultiDownloadTarget::~MultiDownloadTarget()
+    {
+    }
 
     void MultiDownloadTarget::add(DownloadTarget* target)
     {
@@ -746,14 +739,6 @@ namespace mamba
         {
             return;
         }
-
-        if (&target->context() != &m_context)
-        {
-            throw std::invalid_argument(
-                "DownloadTarget's context is not the same instance as MultiDownloadTarget's context"
-            );
-        }
-
         p_curl_handle->add_handle(target->get_curl_handle());
         m_targets.push_back(target);
     }
@@ -772,7 +757,7 @@ namespace mamba
             DownloadTarget* current_target = nullptr;
             for (const auto& target : m_targets)
             {
-                if (target->get_curl_handle().get_id() == msg.m_handle_id)
+                if (target->get_curl_handle() == msg.m_handle_ref)
                 {
                     current_target = target;
                     break;
@@ -826,7 +811,7 @@ namespace mamba
         bool sort = options & MAMBA_DOWNLOAD_SORT;
         bool no_clear_progress_bars = options & MAMBA_NO_CLEAR_PROGRESS_BARS;
 
-        auto& ctx = m_context;
+        auto& ctx = Context::instance();
 
         if (m_targets.empty())
         {

@@ -23,77 +23,75 @@ namespace mamba
 {
     namespace
     {
-        auto make_activator(const Context& context, std::string_view name)
-            -> std::unique_ptr<Activator>
+        auto make_activator(std::string_view name) -> std::unique_ptr<Activator>
         {
             if (name == "bash" || name == "zsh" || name == "dash" || name == "posix")
             {
-                return std::make_unique<mamba::PosixActivator>(context);
+                return std::make_unique<mamba::PosixActivator>();
             }
             if (name == "csh" || name == "tcsh")
             {
-                return std::make_unique<mamba::CshActivator>(context);
+                return std::make_unique<mamba::CshActivator>();
             }
             if (name == "cmd.exe")
             {
-                return std::make_unique<mamba::CmdExeActivator>(context);
+                return std::make_unique<mamba::CmdExeActivator>();
             }
             if (name == "powershell")
             {
-                return std::make_unique<mamba::PowerShellActivator>(context);
+                return std::make_unique<mamba::PowerShellActivator>();
             }
             if (name == "xonsh")
             {
-                return std::make_unique<mamba::XonshActivator>(context);
+                return std::make_unique<mamba::XonshActivator>();
             }
             if (name == "fish")
             {
-                return std::make_unique<mamba::FishActivator>(context);
-            }
-            if (name == "nu")
-            {
-                return std::make_unique<mamba::NuActivator>(context);
+                return std::make_unique<mamba::FishActivator>();
             }
             throw std::invalid_argument(fmt::format("Shell type not handled: {}", name));
         }
     }
 
-    void shell_init(Context& ctx, const std::string& shell_type, const fs::u8path& prefix)
+    void shell_init(const std::string& shell_type, const fs::u8path& prefix)
     {
+        auto& ctx = Context::instance();
         if (prefix.empty() || prefix == "base")
         {
-            init_shell(ctx, shell_type, ctx.prefix_params.root_prefix);
+            init_shell(shell_type, ctx.prefix_params.root_prefix);
         }
         else
         {
-            init_shell(ctx, shell_type, fs::weakly_canonical(env::expand_user(prefix)));
+            init_shell(shell_type, fs::weakly_canonical(env::expand_user(prefix)));
         }
     }
 
-    void shell_deinit(Context& ctx, const std::string& shell_type, const fs::u8path& prefix)
+    void shell_deinit(const std::string& shell_type, const fs::u8path& prefix)
     {
+        auto& ctx = Context::instance();
         if (prefix.empty() || prefix == "base")
         {
-            deinit_shell(ctx, shell_type, ctx.prefix_params.root_prefix);
+            deinit_shell(shell_type, ctx.prefix_params.root_prefix);
         }
         else
         {
-            deinit_shell(ctx, shell_type, fs::weakly_canonical(env::expand_user(prefix)));
+            deinit_shell(shell_type, fs::weakly_canonical(env::expand_user(prefix)));
         }
     }
 
-    void shell_reinit(Context& ctx, const fs::u8path& prefix)
+    void shell_reinit(const fs::u8path& prefix)
     {
         // re-initialize all the shell scripts after update
         for (const auto& shell_type : find_initialized_shells())
         {
-            shell_init(ctx, shell_type, prefix);
+            shell_init(shell_type, prefix);
         }
     }
 
-    void shell_hook(Context& ctx, const std::string& shell_type)
+    void shell_hook(const std::string& shell_type)
     {
-        auto activator = make_activator(ctx, shell_type);
+        auto activator = make_activator(shell_type);
+        auto& ctx = Context::instance();
         // TODO do we need to do something wtih `shell_prefix -> root_prefix?`?
         if (ctx.output_params.json)
         {
@@ -109,8 +107,7 @@ namespace mamba
         }
     }
 
-    void
-    shell_activate(Context& ctx, const fs::u8path& prefix, const std::string& shell_type, bool stack)
+    void shell_activate(const fs::u8path& prefix, const std::string& shell_type, bool stack)
     {
         if (!fs::exists(prefix))
         {
@@ -119,26 +116,26 @@ namespace mamba
             );
         }
 
-        auto activator = make_activator(ctx, shell_type);
+        auto activator = make_activator(shell_type);
         std::cout << activator->activate(prefix, stack);
     }
 
-    void shell_reactivate(Context& ctx, const std::string& shell_type)
+    void shell_reactivate(const std::string& shell_type)
     {
-        auto activator = make_activator(ctx, shell_type);
+        auto activator = make_activator(shell_type);
         std::cout << activator->reactivate();
     }
 
-    void shell_deactivate(Context& ctx, const std::string& shell_type)
+    void shell_deactivate(const std::string& shell_type)
     {
-        auto activator = make_activator(ctx, shell_type);
+        auto activator = make_activator(shell_type);
         std::cout << activator->deactivate();
     }
 
-    void shell_enable_long_path_support(Palette palette)
+    void shell_enable_long_path_support()
     {
 #ifdef _WIN32
-        if (const bool success = enable_long_paths_support(/* force= */ true, palette); !success)
+        if (const bool success = enable_long_paths_support(/* force= */ true); !success)
         {
             throw std::runtime_error("Error enabling Windows long-path support");
         }

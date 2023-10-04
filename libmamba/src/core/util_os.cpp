@@ -33,8 +33,8 @@
 
 #include "mamba/core/environment.hpp"
 #include "mamba/core/output.hpp"
+#include "mamba/core/util.hpp"
 #include "mamba/core/util_os.hpp"
-#include "mamba/util/build.hpp"
 #include "mamba/util/string.hpp"
 
 #ifdef _WIN32
@@ -134,7 +134,7 @@ namespace mamba
         return true;
     }
 
-    bool enable_long_paths_support(bool force, Palette palette)
+    bool enable_long_paths_support(bool force)
     {
         // Needs to be set system-wide & can only be run as admin ...
         std::string win_ver = windows_version();
@@ -166,7 +166,10 @@ namespace mamba
             fmt::print(
                 out,
                 "{}",
-                fmt::styled("Windows long-path support already enabled.", palette.ignored)
+                fmt::styled(
+                    "Windows long-path support already enabled.",
+                    Context::instance().graphics_params.palette.ignored
+                )
             );
             return true;
         }
@@ -202,7 +205,14 @@ namespace mamba
         if (prev_value == 1)
         {
             auto out = Console::stream();
-            fmt::print(out, "{}", fmt::styled("Windows long-path support enabled.", palette.success));
+            fmt::print(
+                out,
+                "{}",
+                fmt::styled(
+                    "Windows long-path support enabled.",
+                    Context::instance().graphics_params.palette.success
+                )
+            );
             return true;
         }
         LOG_WARNING << "Changing registry value did not succeed.";
@@ -219,7 +229,7 @@ namespace mamba
             return override_version.value();
         }
 
-        if (!util::on_win)
+        if (!on_win)
         {
             return "";
         }
@@ -271,7 +281,7 @@ namespace mamba
             return override_version.value();
         }
 
-        if (!util::on_mac)
+        if (!on_mac)
         {
             return "";
         }
@@ -309,7 +319,7 @@ namespace mamba
         {
             return override_version.value();
         }
-        if (!util::on_linux)
+        if (!on_linux)
         {
             return "";
         }

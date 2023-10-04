@@ -18,8 +18,6 @@
 
 namespace mamba
 {
-    class Context;
-
     enum class ActivationType
     {
         ACTIVATE,
@@ -95,9 +93,8 @@ namespace mamba
 
     protected:
 
-        explicit Activator(const Context& context);
+        Activator();
 
-        const Context& m_context;
         bool m_stack = false;
         ActivationType m_action;
 
@@ -108,10 +105,7 @@ namespace mamba
     {
     public:
 
-        explicit PosixActivator(const Context& context)
-            : Activator(context)
-        {
-        }
+        PosixActivator() = default;
         virtual ~PosixActivator() = default;
 
         std::string script(const EnvironmentTransform& env_transform) override;
@@ -129,10 +123,7 @@ namespace mamba
     {
     public:
 
-        explicit CshActivator(const Context& context)
-            : Activator(context)
-        {
-        }
+        CshActivator() = default;
         virtual ~CshActivator() = default;
 
         std::string script(const EnvironmentTransform& env_transform) override;
@@ -150,10 +141,7 @@ namespace mamba
     {
     public:
 
-        explicit CmdExeActivator(const Context& context)
-            : Activator(context)
-        {
-        }
+        CmdExeActivator() = default;
         virtual ~CmdExeActivator() = default;
 
         std::string script(const EnvironmentTransform& env_transform) override;
@@ -171,10 +159,7 @@ namespace mamba
     {
     public:
 
-        explicit PowerShellActivator(const Context& context)
-            : Activator(context)
-        {
-        }
+        PowerShellActivator() = default;
         virtual ~PowerShellActivator() = default;
 
         std::string script(const EnvironmentTransform& env_transform) override;
@@ -192,10 +177,7 @@ namespace mamba
     {
     public:
 
-        explicit XonshActivator(const Context& context)
-            : Activator(context)
-        {
-        }
+        XonshActivator() = default;
         virtual ~XonshActivator() = default;
 
         std::string script(const EnvironmentTransform& env_transform) override;
@@ -213,10 +195,7 @@ namespace mamba
     {
     public:
 
-        explicit FishActivator(const Context& context)
-            : Activator(context)
-        {
-        }
+        FishActivator() = default;
         virtual ~FishActivator() = default;
 
         std::string script(const EnvironmentTransform& env_transform) override;
@@ -230,26 +209,6 @@ namespace mamba
         fs::u8path hook_source_path() override;
     };
 
-    class NuActivator : public Activator
-    {
-    public:
-
-        explicit NuActivator(const Context& context)
-            : Activator(context)
-        {
-        }
-        virtual ~NuActivator() = default;
-
-        std::string script(const EnvironmentTransform& env_transform) override;
-        std::pair<std::string, std::string>
-        update_prompt(const std::string& conda_prompt_modifier) override;
-        std::string shell_extension() override;
-        std::string shell() override;
-
-        std::string hook_preamble() override;
-        std::string hook_postamble() override;
-        fs::u8path hook_source_path() override;
-    };
 
     std::vector<fs::u8path> get_path_dirs(const fs::u8path& prefix);
 

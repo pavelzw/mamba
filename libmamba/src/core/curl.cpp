@@ -4,11 +4,9 @@
 //
 // The full license is in the file LICENSE, distributed with this software.
 
-#include <functional>
-
+// TODO remove all these includes later?
 #include <spdlog/spdlog.h>
 
-#include "mamba/core/context.hpp"
 #include "mamba/core/environment.hpp"  // for NETRC env var
 #include "mamba/core/mamba_fs.hpp"     // for fs::exists
 #include "mamba/core/util.hpp"         // for hide_secrets
@@ -46,7 +44,7 @@ namespace mamba
 
             // DO NOT SET TIMEOUT as it will also take into account multi-start time and
             // it's just wrong curl_easy_setopt(m_handle, CURLOPT_TIMEOUT,
-            // Context::remote_fetch_params.read_timeout_secs);
+            // Context::instance().remote_fetch_params.read_timeout_secs);
 
             // TODO while libcurl in conda now _has_ http2 support we need to fix mamba to
             // work properly with it this includes:
@@ -183,51 +181,6 @@ namespace mamba
         return m_serious;
     }
 
-    /**********
-     * CURLId *
-     **********/
-
-    CURLId::CURLId(CURL* handle)
-        : p_handle(handle)
-    {
-    }
-
-    bool CURLId::operator==(const CURLId& rhs) const
-    {
-        return p_handle == rhs.p_handle;
-    }
-
-    bool CURLId::operator!=(const CURLId& rhs) const
-    {
-        return !(*this == rhs);
-    }
-
-    bool CURLId::operator<(const CURLId& rhs) const
-    {
-        return p_handle < rhs.p_handle;
-    }
-
-    bool CURLId::operator<=(const CURLId& rhs) const
-    {
-        return !(*this > rhs);
-    }
-
-    bool CURLId::operator>(const CURLId& rhs) const
-    {
-        return rhs < *this;
-    }
-
-    bool CURLId::operator>=(const CURLId& rhs) const
-    {
-        return rhs <= *this;
-    }
-
-    std::size_t CURLId::hash() const noexcept
-    {
-        std::hash<CURL*> h;
-        return h(p_handle);
-    }
-
     /**************
      * CURLHandle *
      **************/
@@ -243,7 +196,7 @@ namespace mamba
 
         // Set error buffer
         m_errorbuffer[0] = '\0';
-        set_opt(CURLOPT_ERRORBUFFER, m_errorbuffer.data());
+        set_opt(CURLOPT_ERRORBUFFER, m_errorbuffer);
     }
 
     CURLHandle::CURLHandle(CURLHandle&& rhs)
@@ -254,7 +207,6 @@ namespace mamba
         rhs.p_headers = nullptr;
         std::swap(m_errorbuffer, rhs.m_errorbuffer);
         std::swap(m_result, rhs.m_result);
-        set_opt(CURLOPT_ERRORBUFFER, m_errorbuffer.data());
     }
 
     CURLHandle& CURLHandle::operator=(CURLHandle&& rhs)
@@ -264,8 +216,6 @@ namespace mamba
         swap(m_result, rhs.m_result);
         swap(p_headers, rhs.p_headers);
         swap(m_errorbuffer, rhs.m_errorbuffer);
-        set_opt(CURLOPT_ERRORBUFFER, m_errorbuffer.data());
-        rhs.set_opt(CURLOPT_ERRORBUFFER, rhs.m_errorbuffer.data());
         return *this;
     }
 
@@ -322,7 +272,7 @@ namespace mamba
     }
 
     template <class T>
-    tl::expected<T, CURLcode> CURLHandle::get_info(CURLINFO option) const
+    tl::expected<T, CURLcode> CURLHandle::get_info(CURLINFO option)
     {
         T val;
         CURLcode result = curl_easy_getinfo(m_handle, option, &val);
@@ -344,14 +294,14 @@ namespace mamba
     // defining `long long` is needed to handle `curl_off_t` is `long long` case without
     // causing duplication.
 
-    template tl::expected<long, CURLcode> CURLHandle::get_info(CURLINFO option) const;
-    template tl::expected<char*, CURLcode> CURLHandle::get_info(CURLINFO option) const;
-    template tl::expected<double, CURLcode> CURLHandle::get_info(CURLINFO option) const;
-    template tl::expected<long long, CURLcode> CURLHandle::get_info(CURLINFO option) const;
-    template tl::expected<curl_slist*, CURLcode> CURLHandle::get_info(CURLINFO option) const;
+    template tl::expected<long, CURLcode> CURLHandle::get_info(CURLINFO option);
+    template tl::expected<char*, CURLcode> CURLHandle::get_info(CURLINFO option);
+    template tl::expected<double, CURLcode> CURLHandle::get_info(CURLINFO option);
+    template tl::expected<long long, CURLcode> CURLHandle::get_info(CURLINFO option);
+    template tl::expected<curl_slist*, CURLcode> CURLHandle::get_info(CURLINFO option);
 
     template <>
-    tl::expected<std::size_t, CURLcode> CURLHandle::get_info(CURLINFO option) const
+    tl::expected<std::size_t, CURLcode> CURLHandle::get_info(CURLINFO option)
     {
         auto res = get_info<curl_off_t>(option);
         if (res)
@@ -365,7 +315,7 @@ namespace mamba
     }
 
     template <>
-    tl::expected<int, CURLcode> CURLHandle::get_info(CURLINFO option) const
+    tl::expected<int, CURLcode> CURLHandle::get_info(CURLINFO option)
     {
         auto res = get_info<long>(option);
         if (res)
@@ -379,7 +329,7 @@ namespace mamba
     }
 
     template <>
-    tl::expected<std::string, CURLcode> CURLHandle::get_info(CURLINFO option) const
+    tl::expected<std::string, CURLcode> CURLHandle::get_info(CURLINFO option)
     {
         auto res = get_info<char*>(option);
         if (res)
@@ -410,11 +360,6 @@ namespace mamba
             proxy,
             ssl_verify
         );
-    }
-
-    void CURLHandle::reset_handle()
-    {
-        curl_easy_reset(m_handle);
     }
 
     CURLHandle& CURLHandle::add_header(const std::string& header)
@@ -451,10 +396,10 @@ namespace mamba
 
     const char* CURLHandle::get_error_buffer() const
     {
-        return m_errorbuffer.data();
+        return m_errorbuffer;
     }
 
-    std::string CURLHandle::get_curl_effective_url() const
+    std::string CURLHandle::get_curl_effective_url()
     {
         return get_info<std::string>(CURLINFO_EFFECTIVE_URL).value();
     }
@@ -466,7 +411,7 @@ namespace mamba
 
     bool CURLHandle::is_curl_res_ok() const
     {
-        return is_curl_res_ok(m_result);
+        return (m_result == CURLE_OK);
     }
 
     void CURLHandle::set_result(CURLcode res)
@@ -476,37 +421,12 @@ namespace mamba
 
     std::string CURLHandle::get_res_error() const
     {
-        return get_res_error(m_result);
+        return static_cast<std::string>(curl_easy_strerror(m_result));
     }
 
     bool CURLHandle::can_proceed()
     {
-        return can_retry(m_result);
-    }
-
-    void CURLHandle::perform()
-    {
-        m_result = curl_easy_perform(m_handle);
-    }
-
-    CURLId CURLHandle::get_id() const
-    {
-        return CURLId(m_handle);
-    }
-
-    bool CURLHandle::is_curl_res_ok(CURLcode res)
-    {
-        return res == CURLE_OK;
-    }
-
-    std::string CURLHandle::get_res_error(CURLcode res)
-    {
-        return static_cast<std::string>(curl_easy_strerror(res));
-    }
-
-    bool CURLHandle::can_retry(CURLcode res)
-    {
-        switch (res)
+        switch (m_result)
         {
             case CURLE_ABORTED_BY_CALLBACK:
             case CURLE_BAD_FUNCTION_ARGUMENT:
@@ -532,6 +452,11 @@ namespace mamba
         }
     }
 
+    void CURLHandle::perform()
+    {
+        m_result = curl_easy_perform(m_handle);
+    }
+
     CURL* unwrap(const CURLHandle& h)
     {
         return h.m_handle;
@@ -543,6 +468,50 @@ namespace mamba
     }
 
     bool operator!=(const CURLHandle& lhs, const CURLHandle& rhs)
+    {
+        return !(lhs == rhs);
+    }
+
+    /*****************
+     * CURLReference *
+     *****************/
+
+    CURLReference::CURLReference(CURL* handle)
+        : p_handle(handle)
+    {
+    }
+
+    CURL* unwrap(const CURLReference& h)
+    {
+        return h.p_handle;
+    }
+
+    bool operator==(const CURLReference& lhs, const CURLReference& rhs)
+    {
+        return unwrap(lhs) == unwrap(rhs);
+    }
+
+    bool operator==(const CURLReference& lhs, const CURLHandle& rhs)
+    {
+        return unwrap(lhs) == unwrap(rhs);
+    }
+
+    bool operator==(const CURLHandle& lhs, const CURLReference& rhs)
+    {
+        return unwrap(lhs) == unwrap(rhs);
+    }
+
+    bool operator!=(const CURLReference& lhs, const CURLReference& rhs)
+    {
+        return !(lhs == rhs);
+    }
+
+    bool operator!=(const CURLReference& lhs, const CURLHandle& rhs)
+    {
+        return !(lhs == rhs);
+    }
+
+    bool operator!=(const CURLHandle& lhs, const CURLReference& rhs)
     {
         return !(lhs == rhs);
     }
@@ -593,8 +562,7 @@ namespace mamba
 
     void CURLMultiHandle::add_handle(const CURLHandle& h)
     {
-        CURL* unw = unwrap(h);
-        CURLMcode code = curl_multi_add_handle(p_handle, unw);
+        CURLMcode code = curl_multi_add_handle(p_handle, unwrap(h));
         if (code != CURLM_CALL_MULTI_PERFORM)
         {
             if (code != CURLM_OK)
@@ -626,9 +594,7 @@ namespace mamba
         CURLMsg* msg = curl_multi_info_read(p_handle, &msgs_in_queue);
         if (msg != nullptr)
         {
-            return CURLMultiResponse{ CURLId(msg->easy_handle),
-                                      msg->data.result,
-                                      msg->msg == CURLMSG_DONE };
+            return CURLMultiResponse{ msg->easy_handle, msg->data.result, msg->msg == CURLMSG_DONE };
         }
         else
         {
@@ -664,14 +630,4 @@ namespace mamba
         return static_cast<std::size_t>(numfds);
     }
 
-    std::size_t CURLMultiHandle::poll(size_t timeout)
-    {
-        int numfds = 0;
-        CURLMcode code = curl_multi_poll(p_handle, NULL, 0, static_cast<int>(timeout), &numfds);
-        if (code != CURLM_OK)
-        {
-            throw std::runtime_error(curl_multi_strerror(code));
-        }
-        return static_cast<std::size_t>(numfds);
-    }
 }  // namespace mamba

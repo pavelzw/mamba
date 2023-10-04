@@ -112,9 +112,6 @@ __all__ = [
     "SpecBase",
     "SpecImpl",
     "SubdirData",
-    "SubdirIndex",
-    "SubdirIndexEntry",
-    "TimeRef",
     "Transaction",
     "cache_fn_url",
     "cancel_json_output",
@@ -184,11 +181,11 @@ class ChannelPriority:
     """
     Members:
 
-      Flexible
+      kFlexible
 
-      Strict
+      kStrict
 
-      Disabled
+      kDisabled
     """
 
     def __eq__(self, other: object) -> bool: ...
@@ -210,10 +207,10 @@ class ChannelPriority:
         """
         :type: int
         """
-    Disabled: libmambapy.bindings.ChannelPriority  # value = <ChannelPriority.Disabled: 0>
-    Flexible: libmambapy.bindings.ChannelPriority  # value = <ChannelPriority.Flexible: 1>
-    Strict: libmambapy.bindings.ChannelPriority  # value = <ChannelPriority.Strict: 2>
-    __members__: dict  # value = {'Flexible': <ChannelPriority.Flexible: 1>, 'Strict': <ChannelPriority.Strict: 2>, 'Disabled': <ChannelPriority.Disabled: 0>}
+    __members__: dict  # value = {'kFlexible': <ChannelPriority.kFlexible: 1>, 'kStrict': <ChannelPriority.kStrict: 2>, 'kDisabled': <ChannelPriority.kDisabled: 0>}
+    kDisabled: libmambapy.bindings.ChannelPriority  # value = <ChannelPriority.kDisabled: 0>
+    kFlexible: libmambapy.bindings.ChannelPriority  # value = <ChannelPriority.kFlexible: 1>
+    kStrict: libmambapy.bindings.ChannelPriority  # value = <ChannelPriority.kStrict: 2>
     pass
 
 class CompressedProblemsGraph:
@@ -458,14 +455,6 @@ class Context:
             """
         @max_retries.setter
         def max_retries(self, arg0: int) -> None:
-            pass
-        @property
-        def proxy_servers(self) -> typing.Dict[str, str]:
-            """
-            :type: typing.Dict[str, str]
-            """
-        @proxy_servers.setter
-        def proxy_servers(self, arg0: typing.Dict[str, str]) -> None:
             pass
         @property
         def retry_backoff(self) -> int:
@@ -721,7 +710,7 @@ class Context:
         :type: typing.Dict[str, str]
         """
     @proxy_servers.setter
-    def proxy_servers(self, arg1: typing.Dict[str, str]) -> None:
+    def proxy_servers(self, arg0: typing.Dict[str, str]) -> None:
         pass
     @property
     def quiet(self) -> bool:
@@ -831,6 +820,7 @@ class Context:
 
 class DownloadTargetList:
     def __init__(self) -> None: ...
+    def add(self, arg0: SubdirData) -> None: ...
     def download(self, arg0: int) -> bool: ...
     pass
 
@@ -1343,7 +1333,7 @@ class Solver:
     def add_global_job(self, arg0: int) -> None: ...
     def add_jobs(self, arg0: typing.List[str], arg1: int) -> None: ...
     def add_pin(self, arg0: str) -> None: ...
-    def all_problems_structured(self) -> typing.List[SolverProblem]: ...
+    def all_problems_structured(self) -> typing.List[mamba::MSolverProblem]: ...
     def all_problems_to_str(self) -> str: ...
     def explain_problems(self) -> str: ...
     def is_solved(self) -> bool: ...
@@ -1547,60 +1537,14 @@ class SpecImpl(SpecBase):
     pass
 
 class SubdirData:
+    def __init__(
+        self, arg0: Channel, arg1: str, arg2: str, arg3: MultiPackageCache, arg4: str
+    ) -> None: ...
     def cache_path(self) -> str: ...
     def create_repo(self, arg0: Pool) -> Repo: ...
+    def download_and_check_targets(self, arg0: DownloadTargetList) -> bool: ...
+    def finalize_checks(self) -> None: ...
     def loaded(self) -> bool: ...
-    pass
-
-class SubdirIndex:
-    def __getitem__(self, arg0: int) -> SubdirIndexEntry: ...
-    def __init__(self) -> None: ...
-    def __iter__(self) -> typing.Iterator: ...
-    def __len__(self) -> int: ...
-    def create(
-        self,
-        arg0: Channel,
-        arg1: str,
-        arg2: str,
-        arg3: MultiPackageCache,
-        arg4: str,
-        arg5: str,
-    ) -> None: ...
-    def download(self) -> bool: ...
-    pass
-
-class SubdirIndexEntry:
-    def __init__(self) -> None: ...
-    @property
-    def channel(self) -> Channel:
-        """
-        :type: Channel
-        """
-    @property
-    def platform(self) -> str:
-        """
-        :type: str
-        """
-    @property
-    def subdir(self) -> SubdirData:
-        """
-        :type: SubdirData
-        """
-    @property
-    def url(self) -> str:
-        """
-        :type: str
-        """
-    pass
-
-class TimeRef:
-    @typing.overload
-    def __init__(self) -> None: ...
-    @typing.overload
-    def __init__(self, arg0: int) -> None: ...
-    def set(self, arg0: int) -> None: ...
-    def set_now(self) -> None: ...
-    def timestamp(self) -> str: ...
     pass
 
 class Transaction:

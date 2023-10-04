@@ -4,37 +4,17 @@
 //
 // The full license is in the file LICENSE, distributed with this software.
 
-#include <nlohmann/json.hpp>
-
 #include "mamba/core/context.hpp"
 #include "mamba/core/output.hpp"
 #include "mamba/core/package_cache.hpp"
 #include "mamba/core/package_handling.hpp"
+#include "mamba/core/url.hpp"
 #include "mamba/core/validate.hpp"
-#include "mamba/specs/conda_url.hpp"
-#include "mamba/util/string.hpp"
-#include "mamba/util/url_manip.hpp"
+
+#include "nlohmann/json.hpp"
 
 namespace mamba
 {
-    namespace
-    {
-        bool compare_cleaned_url(std::string_view url_str1, std::string_view url_str2)
-        {
-            auto url1 = specs::CondaURL::parse(url_str1);
-            url1.set_scheme("https");
-            url1.clear_token();
-            url1.clear_password();
-            url1.clear_user();
-            auto url2 = specs::CondaURL::parse(url_str2);
-            url2.set_scheme("https");
-            url2.clear_token();
-            url2.clear_password();
-            url2.clear_user();
-            return util::rstrip(url1.str(), '/') == util::rstrip(url2.str(), '/');
-        }
-    }
-
     PackageCacheData::PackageCacheData(const fs::u8path& path)
         : m_path(path)
     {
@@ -129,7 +109,7 @@ namespace mamba
         }
     }
 
-    bool PackageCacheData::has_valid_tarball(const PackageInfo& s, const ValidationOptions& options)
+    bool PackageCacheData::has_valid_tarball(const PackageInfo& s)
     {
         std::string pkg = s.str();
         if (m_valid_tarballs.find(pkg) != m_valid_tarballs.end())
@@ -159,13 +139,13 @@ namespace mamba
             }
             else
             {
-                if (options.safety_checks == VerificationLevel::Warn)
+                if (Context::instance().safety_checks == VerificationLevel::kWarn)
                 {
                     LOG_WARNING << "Could not validate package '" + tarball_path.string()
                                        + "': md5 and sha256 sum unknown.\n"
                                          "Set safety_checks to disabled to override this warning.";
                 }
-                else if (options.safety_checks == VerificationLevel::Enabled)
+                else if (Context::instance().safety_checks == VerificationLevel::kEnabled)
                 {
                     // we cannot validate this archive, but we could also not validate a downloaded
                     // archive since we just don't know the sha256 or md5 sum
@@ -193,8 +173,7 @@ namespace mamba
         return valid;
     }
 
-    bool
-    PackageCacheData::has_valid_extracted_dir(const PackageInfo& s, const ValidationOptions& options)
+    bool PackageCacheData::has_valid_extracted_dir(const PackageInfo& s)
     {
         bool valid = false, can_validate = false;
 
@@ -227,14 +206,14 @@ namespace mamba
                                    || (!s.sha256.empty() && repodata_record.contains("sha256"));
                     if (!can_validate)
                     {
-                        if (options.safety_checks == VerificationLevel::Warn)
+                        if (Context::instance().safety_checks == VerificationLevel::kWarn)
                         {
                             LOG_WARNING
                                 << "Could not validate package '" + repodata_record_path.string()
                                        + "': md5 and sha256 sum unknown.\n"
                                          "Set safety_checks to disabled to override this warning.";
                         }
-                        else if (options.safety_checks == VerificationLevel::Enabled)
+                        else if (Context::instance().safety_checks == VerificationLevel::kEnabled)
                         {
                             throw std::runtime_error(
                                 "Could not validate package '" + repodata_record_path.string()
@@ -340,7 +319,7 @@ namespace mamba
 
                 if (valid)
                 {
-                    valid = validate(extracted_dir, options);
+                    valid = validate(extracted_dir);
                 }
             }
         }
@@ -356,11 +335,7 @@ namespace mamba
         return valid;
     }
 
-    MultiPackageCache::MultiPackageCache(
-        const std::vector<fs::u8path>& cache_paths,
-        const ValidationOptions& options
-    )
-        : m_options(options)
+    MultiPackageCache::MultiPackageCache(const std::vector<fs::u8path>& cache_paths)
     {
         m_caches.reserve(cache_paths.size());
         for (auto& c : cache_paths)
@@ -430,7 +405,7 @@ namespace mamba
 
         for (PackageCacheData& c : m_caches)
         {
-            if (c.has_valid_tarball(s, m_options))
+            if (c.has_valid_tarball(s))
             {
                 m_cached_tarballs[pkg] = c.path();
                 return c.path();
@@ -460,7 +435,7 @@ namespace mamba
 
         for (auto& c : m_caches)
         {
-            if (c.has_valid_extracted_dir(s, m_options))
+            if (c.has_valid_extracted_dir(s))
             {
                 m_cached_extracted_dirs[pkg] = c.path();
                 return c.path();

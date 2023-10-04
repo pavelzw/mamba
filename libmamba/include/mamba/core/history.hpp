@@ -17,8 +17,6 @@
 
 namespace mamba
 {
-    class Context;
-
     class History
     {
     public:
@@ -34,7 +32,7 @@ namespace mamba
 
         struct UserRequest
         {
-            static UserRequest prefilled(const Context& context);
+            static UserRequest prefilled();
 
             std::string date;
             std::string cmd;
